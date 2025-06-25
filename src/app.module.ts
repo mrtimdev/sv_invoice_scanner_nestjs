@@ -22,17 +22,21 @@ import { JwtService } from '@nestjs/jwt';
       envFilePath: '.env',
     }),
     UsersModule, ScansModule, AuthModule,
-    TypeOrmModule.forRoot({
-      type: 'mysql',
-      host: 'localhost',
-      port: 3306,
-      username: 'root',
-      password: '',
-      database: 'sv_scanner_db',
-      entities: [Scan, User],
-      synchronize: true,
-      autoLoadEntities: true,
-      logging: false
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'mysql',
+        host: configService.get<string>('DB_HOST', 'localhost'),
+        port: configService.get<number>('DB_PORT', 3306),
+        username: configService.get<string>('DB_USERNAME', 'root'),
+        password: configService.get<string>('DB_PASSWORD', ''),
+        database: configService.get<string>('DB_DATABASE', 'sv_scanner_db'),
+        entities: [Scan, User],
+        synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true),
+        autoLoadEntities: true,
+        logging: configService.get<boolean>('DB_LOGGING', false)
+      }),
     }),
     AdminModule,
   ],
