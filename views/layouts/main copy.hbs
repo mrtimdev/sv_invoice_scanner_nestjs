@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - Admin Panel</title>
+
+    {{> shared/styles }}
+
+
+</head>
+<body>
+    {{> header }}
+    <div id="sidebar">
+        {{> sidebar }}
+    </div>
+
+    <main id="main-content">
+        {{{body}}}
+    </main>
+
+    {{> footer }}
+
+    {{> shared/scripts }}
+    {{{_sections.scripts}}}
+    
+</body>
+</html>

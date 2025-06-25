@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login to Your Account</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Updated: Blue to Red gradient background */
+            background: linear-gradient(135deg, #2563eb 0%, #ef4444 100%); /* Tailwind blue-600 to red-500 equivalent */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scroll for animated background */
+        }
+        /* Optional: Add a subtle animation for background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: move-bg 20s infinite alternate;
+            z-index: -1;
+        }
+        @keyframes move-bg {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50%, 50%); }
+        }
+        .login-container {
+            background-color: white;
+            padding: 3rem 2.5rem; /* Increased padding */
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05); /* Stronger shadow */
+            max-width: 28rem; /* Consistent width */
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.6); /* Subtle border for glass effect */
+            backdrop-filter: blur(8px); /* Glassmorphism effect */
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 10; /* Ensure it's above the animated background */
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.875rem 1rem; /* py-3.5 px-4 */
+            border: 1px solid #cbd5e1; /* border-gray-300 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-sizing: border-box;
+            font-size: 1rem;
+            background-color: #f8fafc; /* bg-gray-50 */
+            transition: all 0.2s ease-in-out;
+        }
+        .input-field:focus {
+            outline: none;
+            /* Blue focus outline */
+            border-color: #2563eb; /* blue-600 */
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); /* blue-600 with alpha */
+            background-color: white;
+        }
+        .submit-button {
+            width: 100%;
+            padding: 1rem; /* py-4 */
+            /* Updated: Blue gradient button */
+            background: linear-gradient(to right, #3b82f6, #2563eb); /* Tailwind blue-500 to blue-600 */
+            color: white;
+            font-weight: 700; /* font-bold */
+            border: none;
+            border-radius: 0.75rem; /* rounded-xl */
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            /* Updated: Blue shadow for button */
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); /* blue-500 with alpha */
+        }
+        .submit-button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            /* Updated: Blue shadow on hover */
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4); /* blue-500 with alpha */
+        }
+        .text-link {
+            /* Blue link color */
+            color: #2563eb; /* blue-600 */
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s ease-in-out;
+        }
+        .text-link:hover {
+            /* Darker blue on hover */
+            color: #1d4ed8; /* blue-700 */
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-2">Welcome Back!</h1>
+        <p class="text-lg text-center text-gray-600 mb-8">Sign in to continue</p>
+
+        <form action="/admin/user/login" method="POST" class="space-y-6">
+            <div>
+                <label for="identifier" class="block text-sm font-medium text-gray-700 mb-2">Username or Email</label>
+                <input type="text" id="identifier" name="identifier" class="input-field" placeholder="admin" required>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <input type="password" id="password" name="password" class="input-field" placeholder="password" required>
+                <div class="text-right mt-2">
+                    <a href="/forgot-password" class="text-sm text-link">Forgot Password?</a>
+                </div>
+            </div>
+            <button type="submit" class="submit-button">
+                Log In
+            </button>
+        </form>
+
+        <div class="text-center mt-6">
+            <p class="text-sm text-gray-600">
+                Don't have an account?
+                <a href="/admin/user/register" class="text-link">Register here</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

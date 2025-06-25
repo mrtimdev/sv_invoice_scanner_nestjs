@@ -1,0 +1,30 @@
+body {
+  background-color: inherit;
+  position: relative;
+}
+
+#main-content {
+  margin-left: 230px;
+}
+
+#sidebar {
+  position: absolute;
+  top: 72px;
+  left: 0;
+}
+
+.dt-container .top {
+  display: flex;
+  justify-content: space-around;
+}
+.dt-container .top:nth-child(1), .dt-container .top:nth-child(2) {
+  width: 50% !important;
+}
+.dt-container .top:nth-child(1) {
+  text-align: start !important;
+}
+.dt-container .top:nth-child(2) {
+  text-align: end !important;
+}
+
+/*# sourceMappingURL=admin.css.map */

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{
+    theme: localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+    language: localStorage.getItem('language') || 'en',
+    init() {
+        document.documentElement.classList.toggle('dark', this.theme === 'dark');
+        this.$watch('theme', value => {
+            localStorage.setItem('theme', value);
+            document.documentElement.classList.toggle('dark', value === 'dark');
+        });
+        this.$watch('language', value => {
+            localStorage.setItem('language', value);
+            console.log('Language changed to:', value);
+        });
+    }
+}" :class="{ 'dark': theme === 'dark' }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    {{> shared/styles }}
+    {{{_sections.styles}}}
+</head>
+<body>
+    {{> header }}
+    <div id="sidebar">
+        {{> sidebar }}
+    </div>
+
+    <main id="main-content">
+        {{#if success_msg}}
+            <div class="alert alert-success">{{success_msg}}</div>
+        {{/if}}
+        {{#if error_msg}}
+            <div class="alert alert-danger">{{error_msg}}</div>
+        {{/if}}
+        {{#if error}}
+            <div class="alert alert-danger">{{error}}</div>
+        {{/if}}
+        
+        {{{body}}}
+    </main>
+
+    {{> footer }}
+
+    {{> shared/scripts }}
+    {{{_sections.scripts}}}
+
+
+    <script>
+        // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</body>
+</html>
