@@ -66,7 +66,7 @@ export class AdminController {
         
         res.clearCookie('jwt', {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: false,//process.env.NODE_ENV === 'production',
             sameSite: 'lax', 
         });
 
