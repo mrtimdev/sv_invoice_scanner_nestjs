@@ -49,7 +49,7 @@ export class AdminController {
 
         res.cookie('jwt', token.access_token, {
             httpOnly: true, 
-            secure: process.env.NODE_ENV === 'production', 
+            secure: false,//process.env.NODE_ENV === 'production', 
             sameSite: 'lax',
             maxAge: maxAgeValue, 
         });
