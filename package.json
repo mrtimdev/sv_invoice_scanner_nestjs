@@ -12,7 +12,7 @@
     "start:watch": "nodemon",
     "start:dev": "npm run build:css & npm run copy:assets & nest start --watch",
     "start:debug": "npm run build:css & npm run copy:assets & nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/main & npm run copy:assets",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -22,7 +22,12 @@
     "build:css": "tailwindcss -i ./src/public/css/style.css -o ./public/css/main.css && sass src/public/css/admin.scss:public/css/admin.css --style compressed",
     "watch:css": "concurrently \"tailwindcss -i ./src/public/css/style.css -o ./public/css/main.css --watch\" \"sass src/public/css/admin.scss:public/css/admin.css --watch\"",
     "postinstall": "npm run build:css",
-    "copy:assets": "cpx \"node_modules/jquery/**/*\" \"public/assets/jquery\" && cpx \"node_modules/bootstrap/dist/**/*\" \"public/assets/bootstrap\" && cpx \"node_modules/datatables.net/**/*\" \"public/assets/datatables.net\" && cpx \"node_modules/datatables.net-bs5/**/*\" \"public/assets/datatables.net-bs5\" && cpx \"node_modules/jquery-ui/**/*\" \"public/assets/jquery-ui\" && cpx \"node_modules/datatables.net-dt/**/*\" \"public/assets/datatables.net-dt\""
+    "copy:assets": "cpx \"node_modules/jquery/**/*\" \"public/assets/jquery\" && cpx \"node_modules/bootstrap/dist/**/*\" \"public/assets/bootstrap\" && cpx \"node_modules/datatables.net/**/*\" \"public/assets/datatables.net\" && cpx \"node_modules/datatables.net-bs5/**/*\" \"public/assets/datatables.net-bs5\" && cpx \"node_modules/jquery-ui/**/*\" \"public/assets/jquery-ui\" && cpx \"node_modules/datatables.net-dt/**/*\" \"public/assets/datatables.net-dt\"",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js --dataSource src/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:run": "npm run build && npm run typeorm -- migration:run", 
+    "migration:revert": "npm run typeorm -- migration:revert"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",

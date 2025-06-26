@@ -10,7 +10,6 @@ import { User } from './users/entities/user.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Scan } from './scans/entities/scan.entity';
 import { CustomConfigService } from './config/config.service';
-import { ViewsController } from './views/views.controller';
 import { AdminModule } from './admin/admin.module';
 import { JwtUserMiddleware } from './middlewares/jwt-user.middleware';
 import { JwtService } from '@nestjs/jwt';
@@ -26,7 +25,7 @@ import { JwtService } from '@nestjs/jwt';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
+        type: configService.get<any>('DB_TYPE', 'mysql'),
         host: configService.get<string>('DB_HOST', 'localhost'),
         port: configService.get<number>('DB_PORT', 3306),
         username: configService.get<string>('DB_USERNAME', 'root'),
@@ -40,7 +39,7 @@ import { JwtService } from '@nestjs/jwt';
     }),
     AdminModule,
   ],
-  controllers: [AppController, ViewsController],
+  controllers: [AppController],
   providers: [AppService, CustomConfigService],
 })
 export class AppModule {

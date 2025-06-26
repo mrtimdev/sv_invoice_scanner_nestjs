@@ -14,6 +14,19 @@ import { User } from './users/entities/user.entity';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Get()
+  @UseGuards(AuthenticatedGuard)
+  @Render('admin/dashboard')
+  renderAdminDashboard(@Req() req: Request) {
+    return { currentPath: req.path ,title: 'Admin Dashboard'};
+  }
+
+  @Get('dashboard')
+  @UseGuards(AuthenticatedGuard)
+  @Render('admin/dashboard')
+  renderDashboard(@Req() req: Request) {
+    return { currentPath: req.path ,title: 'Dashboard'};
+  }
 
   // @UseGuards(JwtAuthGuard)
   @Get('/uploads/scans/:filename')
