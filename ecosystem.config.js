@@ -3,7 +3,8 @@ module.exports = {
     name: 'sv-invoice-scanner', // A name for your application
     script: 'dist/main.js',    // Your NestJS application's entry point after compilation
     instances: 'max',          // Max instances based on CPU cores
-    exec_mode: 'cluster',      // Run in cluster mode for better performance
+    // exec_mode: 'cluster',      // Run in cluster mode for better performance
+    exec_mode: "fork",
     watch: false,              // Set to true for development, false for production
     env_production: {
       NODE_ENV: 'production',
