@@ -22,7 +22,8 @@ module.exports = {
         host : '38.242.149.46', // Replace with your server's IP address or hostname
         ref  : 'origin/master',
         repo : 'git@github.com:mrtimdev/sv_invoice_scanner_nestjs.git', // Replace with your Git repository URL
-        path : '/projects/timdev/sv_invoice_scanner_nestjs', // Replace with the deployment path on your server
+        // path : '/projects/timdev/sv_invoice_scanner_nestjs', // Replace with the deployment path on your server
+        path : '~/sv_invoice_scanner_nestjs',
         'pre-deploy-local': 'echo "Starting deployment..."', // Command to run on your local machine before deployment
         'post-deploy' : 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
         'pre-setup': 'echo "Setting up server..."' // Command to run on the server before the first deploy

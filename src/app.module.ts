@@ -13,6 +13,7 @@ import { CustomConfigService } from './config/config.service';
 import { AdminModule } from './admin/admin.module';
 import { JwtUserMiddleware } from './middlewares/jwt-user.middleware';
 import { JwtService } from '@nestjs/jwt';
+import * as path from 'path';
 
 @Module({
   imports: [
@@ -31,7 +32,10 @@ import { JwtService } from '@nestjs/jwt';
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
         database: configService.get<string>('DB_DATABASE', 'sv_scanner_db'),
-        entities: [Scan, User],
+        // entities: [Scan, User],
+        entities: [
+            path.join(__dirname, '../dist/**/*.entity.js'),
+        ],
         synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true),
         autoLoadEntities: true,
         logging: configService.get<boolean>('DB_LOGGING', false)
