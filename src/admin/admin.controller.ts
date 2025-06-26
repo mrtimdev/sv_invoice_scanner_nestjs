@@ -53,6 +53,7 @@ export class AdminController {
             sameSite: 'lax',
             maxAge: maxAgeValue, 
         });
+        console.warn("updated secure: false")
         console.log(`Admin login successful for ${loginDto.identifier}. Redirecting to /admin/dashboard`);
         return res.redirect('/admin/dashboard');
     }
