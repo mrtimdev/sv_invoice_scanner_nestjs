@@ -1,14 +1,14 @@
-<div class="bg-gray-700 dark:bg-gray-900"> {{!-- Adjusted outer div background for full page theme --}}
+<div class="bg-gray-700 dark:bg-gray-800 mx-auto pr-0 sm:pr-6 lg:pr-8 absolute top-0 left-0 right-0 z-10"> {{!-- Adjusted outer div background for full page theme --}}
 
     <header class="flex items-center justify-between p-4 text-white shadow-md
-                   dark:bg-gray-900 dark:text-gray-100"> {{!-- Header background and text now responsive --}}
+                   dark:bg-gray-800 dark:text-gray-100"> {{!-- Header background and text now responsive --}}
         <div class="flex items-center space-x-2">
             <img src="/images/logo.png" alt="Logo" class="h-8 w-[50px]">
             <span class="text-xl font-semibold">SV Invoice Scanner</span>
         </div>
 
         <div class="flex items-center space-x-4">
-            <div class="relative" x-data="{ open: false }" @click.away="open = false">
+            <div style="display: none;" class="relative" x-data="{ open: false }" @click.away="open = false">
                 <button @click="open = !open"
                     class="flex items-center space-x-1 px-3 py-1 rounded-md bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                            dark:bg-gray-700 dark:hover:bg-gray-600"> {{!-- Button background and hover for dark mode --}}
@@ -103,7 +103,7 @@
                 </div>
             </div>
 
-            <div class="relative">
+            <div class="relative" style="display: none;">
                 <button
                     class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                            dark:bg-gray-700 dark:hover:bg-gray-600"> {{!-- Button background and hover for dark mode --}}
@@ -114,7 +114,7 @@
                         </path>
                     </svg>
                     <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-gray-800
-                                   dark:ring-gray-900"></span> {{!-- Notification badge ring for dark mode --}}
+                                   dark:ring-gray-800"></span> {{!-- Notification badge ring for dark mode --}}
                 </button>
             </div>
 

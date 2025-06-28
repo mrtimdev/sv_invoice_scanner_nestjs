@@ -1,9 +1,9 @@
 import { Controller, Get, Logger, NotFoundException, Param, Query, Render, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
-import { AuthenticatedGuard } from 'src/auth/guards/authenticated.guard';
+import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
-import { User } from 'src/users/entities/user.entity';
+import { User } from 'src/entities/user.entity';
 import { ScansService } from './scans.service';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/api/auth/guards/jwt-auth.guard';
 import { basename, extname, join } from 'path';
 import { createReadStream, existsSync } from 'fs';
 import { format } from 'util';
@@ -36,10 +36,12 @@ export class ScansController {
             const draw = parseInt(query.draw);
             const start = parseInt(query.start);
             const length = parseInt(query.length);
-            const searchValue = query.search?.value;
+            // const searchValue = query.search?.value;
+            // const searchValue = query.search?.value;
             const orderColumn = query.order?.[0]?.column;
             const orderDir = query.order?.[0]?.dir;
-            
+            const searchValue = req.query['search[value]']?.toString();
+            console.log('Search value:', searchValue);
             const { scans, total } = await this.scansService.findForDataTable(
                 userId,
                 start,

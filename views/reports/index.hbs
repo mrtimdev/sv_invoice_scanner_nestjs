@@ -1,0 +1,92 @@
+{{!-- views/admin/dashboard.hbs --}}
+
+{{!-- This block will inject dashboard-specific stylesheets into main.hbs's <head> --}}
+{{#section "styles"}}
+    <link rel="stylesheet" href="/css/admin.css"> {{!-- Optional: for any custom CSS not handled by Tailwind --}}
+{{/section}}
+
+{{!-- The main content for your dashboard page, injected into {{{body}}} in main.hbs --}}
+<div class="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {{!-- Dashboard Header --}}
+        <div class="bg-white shadow-lg rounded-xl p-6 mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Welcome Back, <span class="text-primary">{{userName}}</span>!</h1>
+            <p class="text-lg text-gray-600">{{message}}</p>
+        </div>
+
+        {{!-- Invoice Stats Section --}}
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Invoice Scanning Overview</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {{!-- Stat Card 1: Total Scanned Invoices --}}
+                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
+                    <div class="flex items-center justify-center w-12 h-12 bg-indigo-100 text-primary rounded-full mb-4">
+                        <i class="fas fa-file-invoice text-xl"></i> {{!-- Invoice Icon --}}
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Total Scanned Invoices</h3>
+                    <p class="text-3xl font-bold text-gray-900">{{totalScannedInvoices}}</p> {{!-- Dynamic Data --}}
+                    <span class="text-sm text-green-500 mt-2">+{{lifetimeAccuracy}}% lifetime accuracy</span>
+                </div>
+
+                {{!-- Stat Card 2: Daily Scanned Invoices --}}
+                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
+                    <div class="flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mb-4">
+                        <i class="fas fa-arrow-alt-circle-up text-xl"></i> {{!-- Upload/Daily Count Icon --}}
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Scanned Today</h3>
+                    <p class="text-3xl font-bold text-gray-900">{{invoicesScannedToday}}</p> {{!-- Dynamic Data --}}
+                    <span class="text-sm text-green-500 mt-2">+{{hourChange}} this hour</span>
+                </div>
+
+                {{!-- Stat Card 3: Monthly Scanned Invoices --}}
+                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
+                    <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4">
+                        <i class="fas fa-calendar-alt text-xl"></i> {{!-- Calendar Icon --}}
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Scanned This Month</h3>
+                    <p class="text-3xl font-bold text-gray-900">{{invoicesScannedThisMonth}}</p> {{!-- Dynamic Data --}}
+                    <span class="text-sm text-green-500 mt-2">+{{monthChange}}% from last month</span>
+                </div>
+
+                {{!-- Stat Card 4: Pending/Processing Invoices --}}
+                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
+                    <div class="flex items-center justify-center w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full mb-4">
+                        <i class="fas fa-hourglass-half text-xl"></i> {{!-- Hourglass Icon --}}
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Pending Processing</h3>
+                    <p class="text-3xl font-bold text-gray-900">{{pendingInvoices}}</p> {{!-- Dynamic Data --}}
+                    <span class="text-sm text-red-500 mt-2">Action required on 5 invoices</span>
+                </div>
+            </div>
+        </section>
+
+        
+        {{!-- Additional Dashboard Content (Example: Charts, Tables) --}}
+        <section>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Scanning Trends & Data</h2>
+            <div class="bg-white shadow-lg rounded-xl p-6 flex flex-col md:flex-row gap-6">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Invoice Volume Trends (Placeholder)</h3>
+                    <div class="bg-gray-50 h-48 rounded-lg flex items-center justify-center text-gray-400">
+                        [Placeholder for a Chart: e.g., Daily/Weekly Scans]
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Top Document Types / Error Rates (Placeholder)</h3>
+                    <div class="bg-gray-50 h-48 rounded-lg flex items-center justify-center text-gray-400">
+                        [Placeholder for a Table or Chart: e.g., Invoice vs. Receipt vs. PO]
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+{{!-- This block will inject dashboard-specific scripts into main.hbs's <body> --}}
+{{#section "scripts"}}
+    
+    <script>
+        console.log("Invoice Scanner Dashboard UI loaded!");
+    </script>
+{{/section}}

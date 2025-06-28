@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Scan } from 'src/scans/entities/scan.entity';
+import { Scan } from 'src/api/scans/entities/scan.entity';
 import { Repository } from 'typeorm';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
@@ -16,7 +16,7 @@ export class ScansService {
 
     async delete(id: number, userId: number): Promise<void> {
         const scan = await this.scanRepository.findOne({
-        where: { id, user: { id: userId } }
+            where: { id, user: { id: userId } }
         });
 
         if (!scan) {
@@ -64,14 +64,14 @@ export class ScansService {
         if (searchValue) {
             console.log({searchValue})
             query = query.andWhere(
-                'scan.name LIKE :search OR scan.scanned_text LIKE :search', 
+                'scan.scanned_text LIKE :search', 
                 { search: `%${searchValue}%` }
             );
         }
         
         // Add ordering if provided
         if (orderColumn !== undefined && orderDir) {
-            const columns = ['scan.date', 'scan.name', 'scan.status']; 
+            const columns = ['scan.date']; 
             const orderBy = columns[orderColumn] || 'scan.date';
             query = query.orderBy(orderBy, orderDir.toUpperCase() as 'ASC' | 'DESC');
         }

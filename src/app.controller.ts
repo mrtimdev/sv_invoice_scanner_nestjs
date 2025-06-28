@@ -3,10 +3,10 @@ import { AppService } from './app.service';
 import { Request, Response } from 'express';
 import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { LocalAuthGuard } from './auth/guards/local-auth.guard';
-import { AuthenticatedGuard } from './auth/guards/authenticated.guard';
-import { User } from './users/entities/user.entity';
+import { JwtAuthGuard } from './api/auth/guards/jwt-auth.guard';
+import { LocalAuthGuard } from './api/auth/guards/local-auth.guard';
+import { AuthenticatedGuard } from './api/auth/guards/authenticated.guard';
+import { User } from './entities/user.entity';
 
 // @UseGuards(AuthenticatedGuard)
 
@@ -15,17 +15,15 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  @UseGuards(AuthenticatedGuard)
-  @Render('admin/dashboard')
-  renderAdminDashboard(@Req() req: Request) {
-    return { currentPath: req.path ,title: 'Admin Dashboard'};
-  }
+    @UseGuards(AuthenticatedGuard)
+    async renderDashboard_(@Req() req: Request, @Res() res: Response) {
+        return res.redirect('admin/dashboard');
+    }
 
   @Get('dashboard')
   @UseGuards(AuthenticatedGuard)
-  @Render('admin/dashboard')
-  renderDashboard(@Req() req: Request) {
-    return { currentPath: req.path ,title: 'Dashboard'};
+  renderDashboard(@Req() req: Request, @Res() res: Response) {
+    return res.redirect('admin/dashboard');
   }
 
   // @UseGuards(JwtAuthGuard)

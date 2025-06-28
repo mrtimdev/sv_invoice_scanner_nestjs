@@ -1,19 +1,24 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
-import { ScansModule } from './scans/scans.module';
-import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './api/users/users.module';
+import { ScansModule } from './api/scans/scans.module';
+import { AuthModule } from './api/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { User } from './users/entities/user.entity';
+import { User } from './entities/user.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Scan } from './scans/entities/scan.entity';
+import { Scan } from './api/scans/entities/scan.entity';
 import { CustomConfigService } from './config/config.service';
 import { AdminModule } from './admin/admin.module';
 import { JwtUserMiddleware } from './middlewares/jwt-user.middleware';
 import { JwtService } from '@nestjs/jwt';
 import * as path from 'path';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './api/auth/guards/roles.guard';
+import { JwtAuthGuard } from './api/auth/guards/jwt-auth.guard';
+import { PermissionController } from './permission/permission.controller';
+import { PermissionModule } from './permission/permission.module';
 
 @Module({
   imports: [
@@ -42,9 +47,19 @@ import * as path from 'path';
       }),
     }),
     AdminModule,
+    PermissionModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, CustomConfigService],
+  controllers: [AppController, PermissionController],
+  providers: [AppService, CustomConfigService,
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: JwtAuthGuard, // First verify JWT
+    // },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {
   // constructor(private dataSource: DataSource) {}

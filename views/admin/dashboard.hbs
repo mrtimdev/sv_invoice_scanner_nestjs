@@ -1,124 +1,298 @@
 {{!-- views/admin/dashboard.hbs --}}
-
-{{!-- This block will inject dashboard-specific stylesheets into main.hbs's <head> --}}
 {{#section "styles"}}
-    <link rel="stylesheet" href="/css/admin.css"> {{!-- Optional: for any custom CSS not handled by Tailwind --}}
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {{/section}}
 
-{{!-- The main content for your dashboard page, injected into {{{body}}} in main.hbs --}}
-<div class="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans">
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {{!-- Dashboard Header --}}
-        <div class="bg-white shadow-lg rounded-xl p-6 mb-8">
-            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Welcome Back, <span class="text-primary">{{userName}}</span>!</h1>
-            <p class="text-lg text-gray-600">{{message}}</p>
+<div class="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 !pt-[105px] font-sans">
+    <div class="mx-auto sm:px-6 lg:px-8">
+        
+        
+        
+
+        <div class="bg-white shadow-lg rounded-xl flex-1 w-full mb-8 p-4">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">Welcome Back, <span class="text-primary">{{user.username}}</span>!</h1>
+            <p class="text-gray-500">Here's what's happening with your invoices today</p>
+        </div>
+        
+        {{!-- Dashboard Header with Filters --}}
+        <div class="mb-8 w-full">
+            <div class="bg-white shadow-lg rounded-xl p-4 w-full">
+                <div class="flex flex-col sm:flex-row gap-3 items-center">
+                    <div class="relative flex-1">
+                        <select id="timeRange" class="appearance-none bg-gray-100 border-0 text-gray-700 py-2 pl-3 pr-8 rounded-lg focus:ring-2 focus:ring-primary focus:outline-none w-full">
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month" selected>This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="year">This Year</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <div id="customRangePicker" class="hidden sm:flex gap-2 flex-1">
+                        <input type="text" id="startDate" class="datepicker bg-gray-100 border-0 text-gray-700 py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary focus:outline-none w-full" placeholder="Start Date">
+                        <span class="flex items-center text-gray-400">to</span>
+                        <input type="text" id="endDate" class="datepicker bg-gray-100 border-0 text-gray-700 py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary focus:outline-none w-full" placeholder="End Date">
+                    </div>
+                    
+                    <button id="applyFilter" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                </div>
+            </div>
         </div>
 
         {{!-- Invoice Stats Section --}}
         <section class="mb-10">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Invoice Scanning Overview</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {{!-- Stat Card 1: Total Scanned Invoices --}}
-                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
-                    <div class="flex items-center justify-center w-12 h-12 bg-indigo-100 text-primary rounded-full mb-4">
-                        <i class="fas fa-file-invoice text-xl"></i> {{!-- Invoice Icon --}}
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Total Scanned Invoices</h3>
-                    <p class="text-3xl font-bold text-gray-900">{{totalScannedInvoices}}</p> {{!-- Dynamic Data --}}
-                    <span class="text-sm text-green-500 mt-2">+12% lifetime accuracy</span>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-bold text-gray-800">Invoice Scanning Overview</h2>
+                <div class="flex gap-2">
+                    <button class="stat-filter-btn active" data-range="all">All Time</button>
+                    <button class="stat-filter-btn" data-range="monthly">Monthly</button>
+                    <button class="stat-filter-btn" data-range="weekly">Weekly</button>
                 </div>
-
-                {{!-- Stat Card 2: Daily Scanned Invoices --}}
-                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
-                    <div class="flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mb-4">
-                        <i class="fas fa-arrow-alt-circle-up text-xl"></i> {{!-- Upload/Daily Count Icon --}}
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Scanned Today</h3>
-                    <p class="text-3xl font-bold text-gray-900">{{dailyScannedInvoices}}</p> {{!-- Dynamic Data --}}
-                    <span class="text-sm text-green-500 mt-2">+5 this hour</span>
-                </div>
-
-                {{!-- Stat Card 3: Monthly Scanned Invoices --}}
-                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
-                    <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4">
-                        <i class="fas fa-calendar-alt text-xl"></i> {{!-- Calendar Icon --}}
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Scanned This Month</h3>
-                    <p class="text-3xl font-bold text-gray-900">{{monthlyScannedInvoices}}</p> {{!-- Dynamic Data --}}
-                    <span class="text-sm text-green-500 mt-2">+8% from last month</span>
-                </div>
-
-                {{!-- Stat Card 4: Pending/Processing Invoices --}}
-                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col items-start">
-                    <div class="flex items-center justify-center w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full mb-4">
-                        <i class="fas fa-hourglass-half text-xl"></i> {{!-- Hourglass Icon --}}
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Pending Processing</h3>
-                    <p class="text-3xl font-bold text-gray-900">{{pendingInvoices}}</p> {{!-- Dynamic Data --}}
-                    <span class="text-sm text-red-500 mt-2">Action required on 5 invoices</span>
-                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="statsContainer">
+                {{!-- Stat Cards will be loaded here via AJAX --}}
             </div>
         </section>
 
-        {{!-- Recent Activity Section --}}
-        <section class="mb-10">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Recent Scanning Activity</h2>
-            <div class="bg-white shadow-lg rounded-xl p-6">
-                <ul class="divide-y divide-gray-200">
-                    {{!-- Loop through recentActivities data passed from controller --}}
-                    {{#each recentActivities}}
-                    <li class="py-4 flex items-center justify-between">
-                        <div class="flex items-center">
-                            {{!-- Choose icon based on activity type, or use a default --}}
-                            {{#if (eq type 'scanned')}}
-                                <i class="fas fa-check-circle text-xl text-green-500 mr-3"></i>
-                            {{else if (eq type 'uploaded')}}
-                                <i class="fas fa-upload text-xl text-blue-500 mr-3"></i>
-                            {{else if (eq type 'error')}}
-                                <i class="fas fa-exclamation-triangle text-xl text-red-500 mr-3"></i>
-                            {{else}}
-                                <i class="fas fa-info-circle text-xl text-gray-500 mr-3"></i>
-                            {{/if}}
-                            <p class="text-gray-700"><span class="font-semibold">{{detail}}</span></p> {{!-- Dynamic Detail --}}
-                        </div>
-                        <span class="text-sm text-gray-500">{{time}}</span> {{!-- Dynamic Time --}}
-                    </li>
-                    {{else}}
-                    <li class="py-4 text-center text-gray-500">No recent activity to display.</li>
-                    {{/each}}
-                </ul>
-                <div class="mt-6 text-center">
-                    <a href="#" class="text-primary hover:underline font-medium">View Full Activity Log &rarr;</a>
+        {{!-- Chart Section --}}
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+            <div class="bg-white p-6 rounded-xl shadow-lg lg:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Monthly Scan Trend</h3>
+                    <div class="flex gap-2">
+                        <button class="year-filter text-xs px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200" data-year="{{currentYear}}-1">{{currentYear}}-1</button>
+                        <button class="year-filter text-xs px-3 py-1 bg-primary text-white rounded-full" data-year="{{currentYear}}">{{currentYear}}</button>
+                    </div>
+                </div>
+                <div class="h-64">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
+                <div id="recentActivity">
+                    {{!-- Recent activity will be loaded via AJAX --}}
                 </div>
             </div>
         </section>
-
-        {{!-- Additional Dashboard Content (Example: Charts, Tables) --}}
-        <section>
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Scanning Trends & Data</h2>
-            <div class="bg-white shadow-lg rounded-xl p-6 flex flex-col md:flex-row gap-6">
-                <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Invoice Volume Trends (Placeholder)</h3>
-                    <div class="bg-gray-50 h-48 rounded-lg flex items-center justify-center text-gray-400">
-                        [Placeholder for a Chart: e.g., Daily/Weekly Scans]
-                    </div>
-                </div>
-                <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Top Document Types / Error Rates (Placeholder)</h3>
-                    <div class="bg-gray-50 h-48 rounded-lg flex items-center justify-center text-gray-400">
-                        [Placeholder for a Table or Chart: e.g., Invoice vs. Receipt vs. PO]
-                    </div>
-                </div>
-            </div>
-        </section>
-
     </div>
 </div>
 
-{{!-- This block will inject dashboard-specific scripts into main.hbs's <body> --}}
 {{#section "scripts"}}
+<script src="/assets/jquery/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
-        console.log("Invoice Scanner Dashboard UI loaded!");
+        // Global chart reference
+        let monthlyTrendChart;
+        
+        $(document).ready(function() {
+            // Initialize date picker
+            $(".datepicker").flatpickr({
+                dateFormat: "M j, Y",
+                maxDate: "today"
+            });
+
+            // Load initial data
+            loadStats();
+            loadChartData();
+            loadRecentActivity();
+
+            // Time range filter change
+            $("#timeRange").change(function() {
+                if ($(this).val() === "custom") {
+                    $("#customRangePicker").removeClass("hidden");
+                } else {
+                    $("#customRangePicker").addClass("hidden");
+                }
+            });
+
+            // Apply filter button
+            $("#applyFilter").click(function() {
+                loadStats();
+                loadChartData();
+                loadRecentActivity();
+            });
+
+            // Stat filter buttons
+            $(".stat-filter-btn").click(function() {
+                $(".stat-filter-btn").removeClass("active");
+                $(this).addClass("active");
+                loadStats();
+            });
+
+            // Year filter buttons
+            $(".year-filter").click(function() {
+                $(".year-filter").removeClass("bg-primary text-white").addClass("bg-gray-100 hover:bg-gray-200");
+                $(this).removeClass("bg-gray-100 hover:bg-gray-200").addClass("bg-primary text-white");
+                loadChartData();
+            });
+        });
+
+        function loadStats() {
+            const range = $(".stat-filter-btn.active").data("range");
+            const timeRange = $("#timeRange").val();
+            let startDate, endDate;
+
+            if (timeRange === "custom") {
+                startDate = $("#startDate").val();
+                endDate = $("#endDate").val();
+            }
+
+            $.ajax({
+                url: "/admin/dashboard/stats",
+                method: "GET",
+                data: { 
+                    range: range,
+                    timeRange: timeRange,
+                    startDate: startDate,
+                    endDate: endDate 
+                },
+                success: function(data) {
+                    $("#statsContainer").html(`
+                        <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 flex flex-col items-start border-l-4 border-indigo-500">
+                            <div class="flex items-center justify-center w-12 h-12 bg-indigo-100 text-primary rounded-full mb-4">
+                                <i class="fas fa-file-invoice text-xl"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-1">Total Scanned Invoices</h3>
+                            <p class="text-3xl font-bold text-gray-900">${data.totalScannedInvoices}</p>
+                            <span class="text-sm text-green-500 mt-2">Total Invoices</span>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 flex flex-col items-start border-l-4 border-green-500">
+                            <div class="flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mb-4">
+                                <i class="fas fa-arrow-alt-circle-up text-xl"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Scanned Today</h3>
+                            <p class="text-3xl font-bold text-gray-900">${data.invoicesScannedToday}</p>
+                            <span class="text-sm text-green-500 mt-2">Scanned Today</span>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 flex flex-col items-start border-l-4 border-purple-500">
+                            <div class="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mb-4">
+                                <i class="fas fa-calendar-alt text-xl"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-1">Invoices Scanned This Month</h3>
+                            <p class="text-3xl font-bold text-gray-900">${data.invoicesScannedThisMonth}</p>
+                            <span class="text-sm text-green-500 mt-2">+${data.monthChange}% from last month</span>
+                        </div>
+                    `);
+                }
+            });
+        }
+
+        function loadChartData() {
+            const year = $(".year-filter.active").data("year") || "{{currentYear}}";
+            const timeRange = $("#timeRange").val();
+            let startDate, endDate;
+
+            if (timeRange === "custom") {
+                startDate = $("#startDate").val();
+                endDate = $("#endDate").val();
+            }
+
+            $.ajax({
+                url: "/admin/dashboard/chart-data",
+                method: "GET",
+                data: { 
+                    year: year,
+                    timeRange: timeRange,
+                    startDate: startDate,
+                    endDate: endDate 
+                },
+                success: function(data) {
+                    updateChart(data.labels, data.values);
+                }
+            });
+        }
+
+        function updateChart(labels, data) {
+            const ctx = $("#monthlyTrendChart");
+            
+            if (monthlyTrendChart) {
+                monthlyTrendChart.destroy();
+            }
+            
+            monthlyTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Invoices Scanned',
+                        data: data,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grace: '5%' } }
+                }
+            });
+        }
+
+        function loadRecentActivity() {
+            const timeRange = $("#timeRange").val();
+            let startDate, endDate;
+
+            if (timeRange === "custom") {
+                startDate = $("#startDate").val();
+                endDate = $("#endDate").val();
+            }
+
+            $.ajax({
+                url: "/admin/dashboard/recent-activity",
+                method: "GET",
+                data: { 
+                    timeRange: timeRange,
+                    startDate: startDate,
+                    endDate: endDate 
+                },
+                success: function(data) {
+                    let html = '';
+                    data.forEach(activity => {
+                        html += `
+                            <div class="border-b border-gray-100 py-3 last:border-0">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-${activity.color}-100 text-${activity.color}-600 flex items-center justify-center">
+                                            <i class="fas fa-${activity.icon} text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium">${activity.message}</p>
+                                            <p class="text-xs text-gray-500">${activity.time}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    $("#recentActivity").html(html || '<p class="text-gray-500 text-center py-4">No recent activity</p>');
+                }
+            });
+        }
     </script>
 {{/section}}
+
+<style>
+    .stat-filter-btn {
+        @apply px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors duration-200;
+    }
+    .stat-filter-btn.active {
+        @apply bg-primary text-white hover:bg-primary-dark;
+    }
+    .datepicker {
+        min-width: 120px;
+    }
+</style>

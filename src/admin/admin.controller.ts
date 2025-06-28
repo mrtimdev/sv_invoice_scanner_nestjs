@@ -1,18 +1,26 @@
-import { Controller, Get, Post, Render, Res, UseGuards, Body, Req, HttpStatus, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Render, Res, UseGuards, Body, Req, HttpStatus, HttpCode, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
 import * as ms from 'ms';
-import { AuthService } from 'src/auth/auth.service';
-import { LoginDto } from 'src/auth/dto/login.dto';
-import { AuthenticatedGuard } from 'src/auth/guards/authenticated.guard';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
-import { RedirectIfAuthenticatedGuard } from 'src/auth/guards/redirect-if-authenticated.guard';
+import { AuthService } from 'src/api/auth/auth.service';
+import { LoginDto } from 'src/api/auth/dto/login.dto';
+import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
+import { JwtAuthGuard } from 'src/api/auth/guards/jwt-auth.guard';
+import { LocalAuthGuard } from 'src/api/auth/guards/local-auth.guard';
+import { RedirectIfAuthenticatedGuard } from 'src/api/auth/guards/redirect-if-authenticated.guard';
+import { ReportService } from './report/report.service';
+import { DashboardDataDto } from './report/dto/report-data.dto';
+import { User } from 'src/entities/user.entity';
+import { ReportFilterDto } from './report/dto/filter.dto';
 
 @Controller('admin')
 export class AdminController {
-    constructor(private authService: AuthService, private readonly configService: ConfigService,) {}
+    constructor(
+        private authService: AuthService, 
+        private readonly configService: ConfigService,
+        private readonly reportService: ReportService
+    ) {}
     
     @Get('user/login')
     @UseGuards(RedirectIfAuthenticatedGuard)
@@ -70,44 +78,74 @@ export class AdminController {
             sameSite: 'lax', 
         });
 
-         return res.redirect('/admin/user/login');
+        return res.redirect('/admin/user/login');
     }
 
     @Get()
     @UseGuards(AuthenticatedGuard)
-    @Render('admin/dashboard')
-    renderDashboard(@Req() req: Request) {
-        return { currentPath: req.path ,title: 'Admin Dashboard', user: 'Admin User' };
+    async renderDashboard(@Req() req: Request, @Res() res: Response) {
+        return res.redirect('admin/dashboard');
     }
+
     @Get('dashboard')
-    @UseGuards(AuthenticatedGuard)
+    @UseGuards(AuthenticatedGuard, JwtAuthGuard)
     @Render('admin/dashboard')
-    getDashboard(@Req() req: Request) {
+    async getDashboard(
+        @Req() req: Request & { user: User },
+        @Query() filter: ReportFilterDto
+    ): Promise<DashboardDataDto> {
+        const userId = req.user.id;
         
-    // Example static data. In a real app, this would come from a service/database.
-    const totalScannedInvoices = 15234;
-    const dailyScannedInvoices = 125;
-    const monthlyScannedInvoices = 3450;
-    const pendingInvoices = 7;
+        const reportData = await this.reportService.getScanReports(userId, filter);
+        const monthlyTrendData = await this.reportService.getMonthlyTrendData(userId, filter);
+        const recentActivity = await this.reportService.getRecentActivity(userId, filter);
+        
+        return {
+            totalScannedInvoices: reportData.totalScans.toLocaleString(),
+            invoicesScannedToday: reportData.scansToday,
+            invoicesScannedThisMonth: reportData.scansThisMonth,
+            monthChange: reportData.monthChange,
+            monthlyTrendLabels: JSON.stringify(monthlyTrendData.labels),
+            monthlyTrendValues: JSON.stringify(monthlyTrendData.values),
+            recentActivity: JSON.stringify(recentActivity),
+            currentYear: new Date().getFullYear()
+        };
+    }
 
-    const recentActivities = [
-      { type: 'scanned', detail: 'Invoice #INV-2025-0105 scanned successfully (ABC Corp)', time: '5 mins ago' },
-      { type: 'uploaded', detail: 'New batch of 20 invoices uploaded by User A', time: '30 mins ago' },
-      { type: 'error', detail: 'Invoice #INV-2025-0098 failed processing (Missing PO)', time: '2 hours ago' },
-      { type: 'scanned', detail: 'Invoice #INV-2025-0104 scanned successfully (XYZ Ltd)', time: 'Yesterday' },
-      { type: 'uploaded', detail: 'Single invoice uploaded by User B', time: 'Yesterday' },
-    ];
+    @Get('dashboard/stats')
+    @UseGuards(JwtAuthGuard)
+    async getStats(
+        @Req() req: Request & { user: User },
+        @Query() filter: ReportFilterDto
+    ) {
+        const userId = req.user.id;
+        const reportData = await this.reportService.getScanReports(userId, filter);
+        
+        return {
+            totalScannedInvoices: reportData.totalScans.toLocaleString(),
+            invoicesScannedToday: reportData.scansToday,
+            invoicesScannedThisMonth: reportData.scansThisMonth,
+            monthChange: reportData.monthChange,
+        };
+    }
 
-    return {
-        currentPath: req.path,
-        userName: 'Invoice Admin', // Or dynamically get the logged-in user's name
-        message: 'Monitor your invoice scanning operations here.',
-        title: 'Invoice Scanner Dashboard', // Title for the browser tab
-        totalScannedInvoices,
-        dailyScannedInvoices,
-        monthlyScannedInvoices,
-        pendingInvoices,
-        recentActivities,
-    };
-  }
+    @Get('dashboard/chart-data')
+    @UseGuards(JwtAuthGuard)
+    async getChartData(
+        @Req() req: Request & { user: User },
+        @Query() filter: ReportFilterDto
+    ) {
+        const userId = req.user.id;
+        return this.reportService.getMonthlyTrendData(userId, filter);
+    }
+
+    @Get('dashboard/recent-activity')
+    @UseGuards(JwtAuthGuard)
+    async getRecentActivity(
+        @Req() req: Request & { user: User },
+        @Query() filter: ReportFilterDto
+    ) {
+        const userId = req.user.id;
+        return this.reportService.getRecentActivity(userId, filter);
+    }
 }
