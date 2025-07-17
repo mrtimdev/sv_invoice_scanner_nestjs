@@ -22,11 +22,12 @@ module.exports = {
       path : '/home/timdev/projects/timdev/sv_invoice_scanner_nestjs', // The deployment path on your server
       'pre-deploy-local': 'echo "Starting deployment..."', // Command to run on your local machine before deployment
       'post-deploy': `
-        cd {{current}} && \
+        cd /home/timdev/projects/timdev/sv_invoice_scanner_nestjs/source && \
         npm install && \
         npm run build && \
         pm2 reload ecosystem.config.js --env production
       `,
+
 
       'pre-setup': 'echo "Setting up server..."' // Command to run on the server before the first deploy
     }
