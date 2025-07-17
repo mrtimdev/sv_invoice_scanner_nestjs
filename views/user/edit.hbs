@@ -262,7 +262,7 @@
                         data: JSON.stringify(formData),
                         success: function(response) {
                             console.log({response})
-                            {{!-- window.location.href = '/admin/users?success=User+updated+successfully'; --}}
+                            window.location.href = '/admin/users?success=User+updated+successfully';
                         },
                         error: function(xhr) {
                             submitBtn.prop('disabled', false).text('Update User');

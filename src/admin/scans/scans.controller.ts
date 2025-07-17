@@ -7,6 +7,7 @@ import { JwtAuthGuard } from 'src/api/auth/guards/jwt-auth.guard';
 import { basename, extname, join } from 'path';
 import { createReadStream, existsSync } from 'fs';
 import { format } from 'util';
+import { parse } from 'date-fns';
 
 @UseGuards(AuthenticatedGuard)
 @Controller('admin/scans')
@@ -40,14 +41,24 @@ export class ScansController {
             const orderColumn = query.order?.[0]?.column;
             const orderDir = query.order?.[0]?.dir;
             const searchValue = req.query['search[value]']?.toString();
+            const parsedStartDate = query.startDate
+                ? parse(query.startDate, 'MMM d, yyyy', new Date()).toISOString().slice(0, 10)
+                : undefined;
+
+            const parsedEndDate = query.endDate
+                ? parse(query.endDate, 'MMM d, yyyy', new Date()).toISOString().slice(0, 10)
+                : undefined;
             console.log('Search value:', searchValue);
+
             const { scans, total } = await this.scansService.findForDataTable(
                 userId,
                 start,
                 length,
                 searchValue,
                 orderColumn,
-                orderDir
+                orderDir,
+                parsedStartDate,
+                parsedEndDate
             );
             
             return {

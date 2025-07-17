@@ -56,17 +56,31 @@ export class ScansService {
         length: number,
         searchValue?: string,
         orderColumn?: number,
-        orderDir?: 'asc' | 'desc'
+        orderDir?: 'asc' | 'desc',
+        startDate?: string,
+        endDate?: string
     ) {
         // Create query builder or ORM query
         let query = this.scanRepository.createQueryBuilder('scan')
-            .where('scan.user_id = :userId', { userId })
-            .skip(start)
-            .take(length);
+            .where('scan.user_id = :userId', { userId });
+
+        if (length !== -1) {
+            query = query.skip(start).take(length);
+        }
+
+
+        if (startDate) {
+            query = query.andWhere('DATE(scan.date) >= :startDate', { startDate });
+        }
+        if (endDate) {
+            query = query.andWhere('DATE(scan.date) <= :endDate', { endDate });
+        }
+
+        console.log({searchValue, orderDir, length})
         
         // Add search if provided
         if (searchValue) {
-            console.log({searchValue})
+            
             query = query.andWhere(
                 'scan.scanned_text LIKE :search', 
                 { search: `%${searchValue}%` }
