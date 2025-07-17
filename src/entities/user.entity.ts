@@ -33,8 +33,14 @@ export class User {
   @Column({ length: 255 })
   password: string;
 
+  @Column({nullable: true, name: 'avatar' })
+  avatar: string;
+
   @Column({name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
+  @Column({ default: false, name: 'is_deleted' })
+  isDeleted: boolean;
 
   @OneToMany(() => Scan, scan => scan.user)
   scans: Scan[];

@@ -1,4 +1,4 @@
-import { Controller, Get, Logger, NotFoundException, Param, Query, Render, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
 import { User } from 'src/entities/user.entity';
@@ -7,6 +7,7 @@ import { JwtAuthGuard } from 'src/api/auth/guards/jwt-auth.guard';
 import { basename, extname, join } from 'path';
 import { createReadStream, existsSync } from 'fs';
 import { format } from 'util';
+
 @UseGuards(AuthenticatedGuard)
 @Controller('admin/scans')
 export class ScansController {
@@ -36,8 +37,6 @@ export class ScansController {
             const draw = parseInt(query.draw);
             const start = parseInt(query.start);
             const length = parseInt(query.length);
-            // const searchValue = query.search?.value;
-            // const searchValue = query.search?.value;
             const orderColumn = query.order?.[0]?.column;
             const orderDir = query.order?.[0]?.dir;
             const searchValue = req.query['search[value]']?.toString();
@@ -163,5 +162,16 @@ export class ScansController {
 
         const fileStream = createReadStream(filePath);
         return new StreamableFile(fileStream);
+    }
+
+
+
+    @Post('download-zip')
+    async downloadZip(@Body() body: { ids: number[] }, @Res() res: Response) {
+        try {
+        await this.scansService.createZipFile(body.ids, res);
+        } catch (error) {
+        res.status(500).json({ message: error.message });
+        }
     }
 }

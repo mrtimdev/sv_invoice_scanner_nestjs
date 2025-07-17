@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Scan } from 'src/api/scans/entities/scan.entity';
-import { Repository } from 'typeorm';
-import { unlink } from 'fs/promises';
+import { In, Repository } from 'typeorm';
+import { unlink,  } from 'fs/promises';
 import { join } from 'path';
+import * as archiver from 'archiver';
+import { promises as fs } from 'fs';
+import { Response } from 'express';
+
 
 @Injectable()
 export class ScansService {
@@ -85,6 +89,46 @@ export class ScansService {
     async findById(id: number): Promise<Scan | null> {
         const scan = await this.scanRepository.findOneBy({ id: id });
         return scan;
+    }
+
+    async getScansByIds(ids: number[]): Promise<Scan[]> {
+        return this.scanRepository.findBy({ id: In(ids) });
+    }
+
+
+    async createZipFile(scanIds: number[], res: Response): Promise<void> {
+        // Get selected scans from database
+        const scans = await this.getScansByIds(scanIds);
+        
+        if (scans.length === 0) {
+        throw new Error('No scans found');
+        }
+
+        // Create a zip archive
+        const archive = archiver('zip', {
+        zlib: { level: 9 } // Compression level
+        });
+
+        // Set response headers
+        res.header('Content-Type', 'application/zip');
+        res.header('Content-Disposition', `attachment; filename="sv-scans-${Date.now()}.zip"`);
+
+        // Pipe archive to response
+        await archive.pipe(res);
+
+        // Add each scan to the archive
+        for (const scan of scans) {
+            const filePath = join(process.cwd(), scan.imagePath);
+            try {
+                await fs.access(filePath); 
+                archive.file(filePath, { name: scan.imagePath.split('/').pop() });
+            } catch (err) {
+                console.error(`File not found: ${filePath}`);
+            }
+        }
+
+        // Finalize the archive
+        await archive.finalize();
     }
 
 }

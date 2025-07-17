@@ -11,6 +11,11 @@ import { Request, Response } from 'express';
 export class AuthController {
     constructor(private authService: AuthService) {}
 
+    @Get('csrf-token')
+  getCsrfToken(@Req() req: Request, @Res() res: Response) {
+    res.json({ csrfToken: req.csrfToken() });
+  }
+
     @UseGuards(LocalAuthGuard)
     @Post('login')
     @HttpCode(HttpStatus.OK)

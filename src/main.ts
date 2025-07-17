@@ -11,6 +11,8 @@ import * as layouts from 'handlebars-layouts';
 import * as session from 'express-session';
 import * as passport from 'passport';
 
+import * as methodOverride from 'method-override';
+
 
 import * as cookieParser from 'cookie-parser';
 import { engine } from 'express-handlebars';
@@ -19,6 +21,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn'],
   });
+
+  app.use(methodOverride('_method'));
 
   // const configService = app.get(ConfigService); // Get ConfigService instance
 
@@ -105,11 +109,46 @@ async function bootstrap() {
         return options.inverse(this);
       },
 
+      array: function (...args: any[]) {
+        return args.slice(0, -1); 
+      },
 
+
+      includes: function(array: string | any[], value: any, options: { fn: (arg0: any) => any; }) {
+        if (!array) return false;
+        return array && array.includes(value);
+      },
+
+      hasAnyRole: function (userRoles: any[], allowedRoles: any[], options: { inverse: (arg0: any) => any; fn: (arg0: any) => any; }) {
+        if (!Array.isArray(userRoles) || !Array.isArray(allowedRoles)) {
+          return options.inverse(this);
+        }
+        
+        const allowed = allowedRoles.map(r => r.toLowerCase());
+        const hasRole = userRoles.some(role => 
+          role && role.code && allowed.includes(role.code.toLowerCase())
+        );
+        
+        return hasRole ? options.fn(this) : options.inverse(this);
+      },
+
+      isSuperAdmin: function (userRoles: any[], options: { fn: (arg0: any) => any; inverse: (arg0: any) => any; }) {
+        return userRoles.some(role => role.code === 'super_admin');
+      },
+
+      isAdmin: function (userRoles: any[], options: { fn: (arg0: any) => any; inverse: (arg0: any) => any; }) {
+        return userRoles.some(role => role.code === 'admin');
+      },
+
+      isUser: function (userRoles: any[]) {
+        return userRoles.some(role => role.code === 'user');
+      },
+      
       isAuthenticated: () => !!this.user,
         hasRole: (role: any) => this.user?.roles?.includes(role),
       }
   });
+
 
 //   {{#if (isAuthenticated)}}
 //   {{#if (hasRole 'admin')}}
