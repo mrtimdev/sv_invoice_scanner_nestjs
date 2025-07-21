@@ -43,7 +43,8 @@ import { PermissionModule } from './permission/permission.module';
         ],
         synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true),
         autoLoadEntities: true,
-        logging: configService.get<boolean>('DB_LOGGING', false)
+        logging: configService.get<boolean>('DB_LOGGING', false),
+        timezone: configService.get<string>('TIMEZONE', 'local')
       }),
     }),
     AdminModule,

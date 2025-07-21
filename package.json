@@ -27,13 +27,15 @@
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:create": "npm run typeorm -- migration:create",
     "migration:run": "npm run build && npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert"
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "lint:style": "stylelint '**/*.{css,scss,hbs}'"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
     "@fastify/multipart": "^9.0.3",
     "@fastify/static": "^8.2.0",
     "@fastify/view": "^11.1.0",
+    "@flaticon/flaticon-uicons": "^3.3.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -74,6 +76,8 @@
     "pump": "^3.0.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "^0.34.3",
+    "tesseract.js": "^6.0.1",
     "typeorm": "^0.3.25"
   },
   "devDependencies": {
@@ -114,6 +118,12 @@
     "prettier": "^3.4.2",
     "sass": "^1.89.2",
     "source-map-support": "^0.5.21",
+    "stylelint": "^16.22.0",
+    "stylelint-config-html": "^1.1.0",
+    "stylelint-config-recommended-scss": "^15.0.1",
+    "stylelint-config-standard": "^38.0.0",
+    "stylelint-order": "^7.0.0",
+    "stylelint-scss": "^6.12.1",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.17",
     "ts-jest": "^29.2.5",

@@ -12,7 +12,8 @@ import {
   UseInterceptors,
   Get,
   Body,
-  Res
+  Res,
+  Query
 } from '@nestjs/common';
 import { ScansService } from './scans.service';
 import { Request, Response } from 'express';
@@ -32,11 +33,27 @@ import { ScanInterceptor } from './interceptors/scan.interceptor';
 export class ScansController {
     constructor(private readonly scanService: ScansService) {}
 
+
     @Get()
-    @ApiOperation({ summary: 'Get all scans for authenticated user' })
-    async findAll(@Req() req: Request & { user: User }) {
-        return await this.scanService.findAllForUser(req.user.id);
+    @ApiOperation({ summary: 'Paginated scans with filters' })
+    async findAll(
+        @Req() req: Request & { user: User },
+        @Query('limit') limit = 20,
+        @Query('before') before?: string,
+        @Query('after') after?: string,
+        @Query('search') search?: string,
+        @Query('filter') filter?: string,
+        ) {
+    return await this.scanService.paginatedForUser(
+            req.user.id,
+            +limit,
+            before,
+            after,
+            search,
+            filter,
+        );
     }
+
 
     @Post()
     @UseInterceptors(FileInterceptor('image', {

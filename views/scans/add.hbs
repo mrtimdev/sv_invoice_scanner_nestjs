@@ -1,0 +1,425 @@
+
+{{#section "styles"}}
+    <link href="/assets/datatables.net-dt/css/dataTables.dataTables.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        #scansTable {
+            width: 100% !important;
+            border-collapse: collapse;
+        }
+
+        .stat-filter-btn {
+            @apply px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors duration-200;
+        }
+        .stat-filter-btn.active {
+            @apply bg-primary text-white hover:bg-primary-dark;
+        }
+        .datepicker {
+            min-width: 120px;
+        }
+        #scanPreview {
+    transition: all 0.3s ease;
+}
+
+.progress-bar {
+    height: 4px;
+    background-color: #e5e7eb;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #3b82f6;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+#liveText {
+    min-height: 200px;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+    </style>
+{{/section}}
+
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8 !pt-[105px] font-sans transition-colors duration-200">
+    <div class="mx-auto py-0 sm:px-6 lg:px-8">
+        <!-- Breadcrumb -->
+        <div id="bc" class="flex justify-between items-center bg-white dark:bg-gray-800 shadow-lg rounded-lg w-full mb-8 p-4 transition-colors duration-200">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+                    <li class="inline-flex items-center">
+                        <a href="#" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white transition-colors duration-200">
+                            <svg class="w-3 h-3 me-2.5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"/>
+                            </svg>
+                            Home
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="rtl:rotate-180 w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+                            </svg>
+                            <a href="/admim/scanns" class="ms-1 text-sm font-medium text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white transition-colors duration-200">Scans</a>
+                        </div>
+                    </li>
+                    <li aria-current="page">
+                        <div class="flex items-center">
+                            <svg class="rtl:rotate-180 w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+                            </svg>
+                            <span class="ms-1 text-sm font-medium text-gray-500 dark:text-gray-400">New</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+        </div>
+
+
+        <!-- Main Content -->
+        <section class="mb-2">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 transition-colors duration-200">Start Invoice Scanning</h2>
+            
+            <!-- Scan Container -->
+            <div class="overflow-x-auto rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+                <h1 class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Upload Image to Scan Text</h1>
+                
+                <!-- Add this to your template -->
+                <div id="scanPreview" class="hidden mt-6">
+                    <div class="flex gap-4">
+                        <div class="w-1/2">
+                            <img id="previewImage" src="" alt="Preview" class="rounded-md border border-gray-300 dark:border-gray-600 max-w-full h-auto">
+                            <div class="mt-2">
+                                <div class="progress-bar">
+                                    <div id="progressFill" class="progress-fill"></div>
+                                </div>
+                                <div id="progressText" class="text-sm text-gray-600 dark:text-gray-400 mt-1">Ready to scan</div>
+                            </div>
+                        </div>
+                        <div class="w-1/2">
+                            <div class="bg-gray-100 dark:bg-gray-900 p-4 rounded-md h-64 overflow-auto">
+                                <pre id="liveText" class="whitespace-pre-wrap text-gray-700 dark:text-gray-200">Scan results will appear here...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="camera-section mb-6">
+                    <div class="flex gap-4 mb-4">
+                        <button id="startCamera" class="camera-btn bg-blue-600">
+                        Open Camera
+                        </button>
+                        <button id="captureBtn" class="camera-btn bg-green-600 hidden">
+                        Capture Photo
+                        </button>
+                        <button id="stopCamera" class="camera-btn bg-red-600 hidden">
+                        Stop Camera
+                        </button>
+                        <button id="switchCamera" class="camera-btn bg-purple-600 hidden">
+                        Switch Camera
+                        </button>
+                    </div>
+
+                    <div class="camera-container relative">
+                        <video id="cameraPreview" class="w-full max-w-md border rounded hidden" autoplay playsinline muted></video>
+                        <canvas id="captureCanvas" class="hidden"></canvas>
+                        <div id="cameraError" class="text-red-500 hidden"></div>
+                    </div>
+
+                    <div id="previewContainer" class="mt-4 hidden">
+                        <img id="capturePreview" class="max-w-md border rounded">
+                        <button id="retakeBtn" class="camera-btn bg-yellow-600 mt-2">
+                        Retake Photo
+                        </button>
+                    </div>
+                    </div>
+
+                <!-- Update your form -->
+                <form id="scanForm" action="/admin/scans/upload/new" method="POST" enctype="multipart/form-data" class="mb-8 space-y-4">
+                    <input 
+                        type="file" 
+                        name="image" 
+                        id="scanInput"
+                        required 
+                        class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer bg-white dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 file:bg-blue-50 file:border-0 file:px-3 file:py-2 file:rounded file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 transition"
+                    >
+                    <button 
+                        type="submit" 
+                        class="inline-block px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                    >
+                        Scan
+                    </button>
+                </form>
+            </div>
+
+            
+        </section>
+    </div>
+</div>
+
+
+
+{{#section "scripts"}}
+
+<script src="/assets/jquery/dist/jquery.min.js"></script>
+
+<script>
+
+    class CameraScanner {
+  constructor() {
+    this.video = document.getElementById('cameraPreview');
+    this.canvas = document.getElementById('captureCanvas');
+    this.preview = document.getElementById('capturePreview');
+    this.startBtn = document.getElementById('startCamera');
+    this.captureBtn = document.getElementById('captureBtn');
+    this.stopBtn = document.getElementById('stopCamera');
+    this.switchBtn = document.getElementById('switchCamera');
+    this.retakeBtn = document.getElementById('retakeBtn');
+    this.errorDisplay = document.getElementById('cameraError');
+    this.previewContainer = document.getElementById('previewContainer');
+    
+    this.stream = null;
+    this.facingMode = 'environment'; // Default to rear camera
+    this.setupEvents();
+  }
+
+  setupEvents() {
+    this.startBtn.addEventListener('click', () => this.startCamera());
+    this.captureBtn.addEventListener('click', () => this.captureImage());
+    this.stopBtn.addEventListener('click', () => this.stopCamera());
+    this.switchBtn.addEventListener('click', () => this.switchCamera());
+    this.retakeBtn.addEventListener('click', () => this.retakePhoto());
+  }
+
+  async startCamera() {
+    try {
+      this.errorDisplay.classList.add('hidden');
+      
+      const constraints = {
+        video: {
+          facingMode: this.facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+
+      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.video.srcObject = this.stream;
+      this.video.classList.remove('hidden');
+      
+      // Show camera controls
+      this.captureBtn.classList.remove('hidden');
+      this.stopBtn.classList.remove('hidden');
+      this.switchBtn.classList.remove('hidden');
+      this.startBtn.classList.add('hidden');
+      this.previewContainer.classList.add('hidden');
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        this.video.onloadedmetadata = () => {
+          this.video.play();
+          resolve();
+        };
+      });
+    } catch (err) {
+      this.handleCameraError(err);
+    }
+  }
+
+  captureImage() {
+    this.canvas.width = this.video.videoWidth;
+    this.canvas.height = this.video.videoHeight;
+    const context = this.canvas.getContext('2d');
+    
+    // Draw video frame to canvas
+    context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+    
+    // Show preview
+    this.preview.src = this.canvas.toDataURL('image/jpeg', 0.9);
+    this.previewContainer.classList.remove('hidden');
+    
+    // Hide camera temporarily
+    this.video.classList.add('hidden');
+  }
+
+  async retakePhoto() {
+    this.previewContainer.classList.add('hidden');
+    this.video.classList.remove('hidden');
+  }
+
+  async stopCamera() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.video.srcObject = null;
+    }
+    
+    // Reset UI
+    this.video.classList.add('hidden');
+    this.startBtn.classList.remove('hidden');
+    this.captureBtn.classList.add('hidden');
+    this.stopBtn.classList.add('hidden');
+    this.switchBtn.classList.add('hidden');
+  }
+
+  async switchCamera() {
+    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+    await this.stopCamera();
+    await this.startCamera();
+  }
+
+  handleCameraError(error) {
+    console.error('Camera Error:', error);
+    this.errorDisplay.textContent = this.getUserFriendlyError(error);
+    this.errorDisplay.classList.remove('hidden');
+    
+    // Show fallback file input
+    if (error.name === 'NotAllowedError') {
+      alert('Please allow camera access to use this feature');
+    }
+  }
+
+  getUserFriendlyError(error) {
+    const errors = {
+      'NotAllowedError': 'Camera access was denied',
+      'NotFoundError': 'No camera found',
+      'NotReadableError': 'Camera is already in use',
+      'OverconstrainedError': 'Camera doesn\'t support requested mode',
+      'SecurityError': 'Camera access blocked by security policy',
+      'default': 'Could not access camera'
+    };
+    
+    return errors[error.name] || errors.default;
+  }
+
+  async uploadScan() {
+    if (!this.canvas) return;
+    
+    // Convert canvas to blob
+    this.canvas.toBlob(async (blob) => {
+      const file = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
+      await this.sendToServer(file);
+    }, 'image/jpeg', 0.85);
+  }
+
+  async sendToServer(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const response = await fetch('/admin/scans/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const result = await response.json();
+      this.displayResults(result);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Upload failed. Please try again.');
+    }
+  }
+
+  displayResults(result) {
+    // Update your UI with OCR results
+    console.log('OCR Results:', result);
+    // Implement your result display logic here
+  }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
+    new CameraScanner();
+  } else {
+    document.getElementById('cameraError').textContent = 
+      'Camera API not supported in your browser';
+    document.getElementById('startCamera').disabled = true;
+  }
+});
+
+    $(document).ready(function() {
+
+
+    
+
+
+
+
+
+
+
+
+    const scanForm = $('#scanForm');
+    const scanPreview = $('#scanPreview');
+    const previewImage = $('#previewImage');
+    const liveText = $('#liveText');
+    const progressText = $('#progressText');
+    const progressFill = $('#progressFill');
+
+    // Show image preview when file is selected
+    $('#scanInput').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.attr('src', e.target.result);
+                scanPreview.removeClass('hidden');
+                liveText.text('Scan results will appear here...');
+                progressText.text('Ready to scan');
+                progressFill.css('width', '0%');
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Handle form submission with AJAX for progress
+    scanForm.on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: $(this).attr('action'),
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                
+                // Progress update
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressFill.css('width', percent + '%');
+                        progressText.text(`Uploading: ${percent}%`);
+                    }
+                });
+                
+                return xhr;
+            },
+            beforeSend: function() {
+                progressText.text('Starting upload...');
+            },
+            success: function(response) {
+                liveText.text(response.text);
+                progressText.text('Scan completed!');
+                progressFill.css('width', '100%');
+                
+                // Update the image with the final version from server
+                previewImage.attr('src', response.imageUrl);
+            },
+            error: function(xhr) {
+                progressText.text('Error: ' + (xhr.responseJSON?.message || 'Scan failed'));
+                progressFill.css('width', '0%');
+                liveText.text('An error occurred during scanning.');
+            }
+        });
+    });
+});
+</script>
+{{/section}}

@@ -17,6 +17,16 @@ export class ScansService {
     ) {}
 
 
+    private progressMap = new Map<string, number>();
+
+
+    setProgress(token: string, value: number) {
+        this.progressMap.set(token, value);
+    }
+
+    getProgress(token: string): number {
+        return this.progressMap.get(token) || 0;
+    }
 
     async delete(id: number, userId: number): Promise<void> {
         const scan = await this.scanRepository.findOne({
@@ -76,7 +86,7 @@ export class ScansService {
             query = query.andWhere('DATE(scan.date) <= :endDate', { endDate });
         }
 
-        console.log({searchValue, orderDir, length})
+        console.log({searchValue, orderDir, length, startDate, endDate})
         
         // Add search if provided
         if (searchValue) {
@@ -115,12 +125,12 @@ export class ScansService {
         const scans = await this.getScansByIds(scanIds);
         
         if (scans.length === 0) {
-        throw new Error('No scans found');
+            throw new Error('No scans found');
         }
 
         // Create a zip archive
         const archive = archiver('zip', {
-        zlib: { level: 9 } // Compression level
+            zlib: { level: 9 } // Compression level
         });
 
         // Set response headers
@@ -128,20 +138,34 @@ export class ScansService {
         res.header('Content-Disposition', `attachment; filename="sv-scans-${Date.now()}.zip"`);
 
         // Pipe archive to response
-        await archive.pipe(res);
+        archive.pipe(res);
 
         // Add each scan to the archive
         for (const scan of scans) {
             const filePath = join(process.cwd(), scan.imagePath);
             try {
-                await fs.access(filePath); 
-                archive.file(filePath, { name: scan.imagePath.split('/').pop() });
+                await fs.access(filePath);
+
+                // Get original extension
+                const originalFileName = scan.imagePath.split('/').pop() || 'unknown.jpg';
+                const extension = originalFileName.substring(originalFileName.lastIndexOf('.'));
+
+                // Format scan.date
+                const dateObj = new Date(scan.date);
+                const datePrefix = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+
+
+                // Final file name
+                const customName = `${datePrefix}_${originalFileName}${extension}`;
+
+                archive.file(filePath, { name: customName });
+
             } catch (err) {
                 console.error(`File not found: ${filePath}`);
             }
         }
 
-        // Finalize the archive
+        // Finalize archive
         await archive.finalize();
     }
 

@@ -54,7 +54,7 @@
                 </ol>
             </nav>
             <button id="download-selected" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                Download Selected as ZIP
+                <i class="fi fi-sr-zip-file"></i> Download Selected as ZIP
             </button>
         </div>
 
@@ -67,6 +67,9 @@
             
             <button id="applyFilter" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
                 <i class="fas fa-filter"></i> Apply
+            </button>
+            <button id="resetFilter" class="bg-danger hover:bg-danger-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                <i class="fi fi-sr-clear-alt"></i>Reset
             </button>
         </div>
 
@@ -123,7 +126,7 @@
 
 {{#section "scripts"}}
 
-<script src="/assets/jquery/dist/jquery.min.js"></script>
+
 <script src="/assets/datatables.net/js/dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
@@ -138,7 +141,7 @@
             
             const table = new DataTable('#scansTable', {
 
-                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+                lengthMenu: [[10, 25, 50, 100, 200, -1], [10, 25, 50, 100, 200, 'All']],
                 processing: true,
                 serverSide: true,
                 ajax: {
@@ -229,55 +232,16 @@
         $('#applyFilter').on('click', function () {
             table.ajax.reload();
         });
+        $("#resetFilter").on('click', function() {
+            $('#startDate, #endDate').val('');
+            table.ajax.reload();
+        });
 
         $('#check-all').on('click', function() {
             $('.check-row').prop('checked', $(this).prop('checked'));
         });
 
-        $('#download-selected').on('click', function() {
-            const selectedIds = $('.check-row:checked').map(function() {
-                return $(this).val();
-            }).get();
-
-            if (selectedIds.length === 0) {
-                alert('Please select at least one scan to download');
-                return;
-            }
-
-            $.ajax({
-                url: '/admin/scans/download-zip',
-                type: 'POST',
-                contentType: 'application/json',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: JSON.stringify({ ids: selectedIds }),
-                xhrFields: {
-                    responseType: 'blob' // Important for binary responses
-                },
-                success: function(data, status, xhr) {
-                    // Get filename from content-disposition header
-                    const contentDisposition = xhr.getResponseHeader('content-disposition');
-                    const filename = contentDisposition 
-                        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-                        : `sv-scans-${new Date().toISOString()}.zip`;
-
-                    // Create download link
-                    const url = window.URL.createObjectURL(data);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error:', error);
-                    alert('Failed to download scans');
-                }
-            });
-        });
+        
     });
     </script>
 {{/section}}

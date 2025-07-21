@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers  } from '@nestjs/common';
 import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
 import { User } from 'src/entities/user.entity';
@@ -7,13 +7,27 @@ import { JwtAuthGuard } from 'src/api/auth/guards/jwt-auth.guard';
 import { basename, extname, join } from 'path';
 import { createReadStream, existsSync } from 'fs';
 import { format } from 'util';
-import { parse } from 'date-fns';
+import { parse, format as formatDate } from 'date-fns';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { createWorker, OEM, PSM, Worker } from 'tesseract.js';
+import * as sharp from 'sharp';
+
+import * as archiver from 'archiver';
+import { promises as fs } from 'fs';
+import { interval, map, Observable } from 'rxjs';
+import { v4 as uuidv4 } from 'uuid';
+import { ProgressService } from 'src/progress/progress.service';
+// import { ProgressService } from '../progress/progress.service';
 
 @UseGuards(AuthenticatedGuard)
 @Controller('admin/scans')
 export class ScansController {
     private readonly logger = new Logger(ScansController.name);
-    constructor(private readonly scansService: ScansService) {}
+    constructor(
+        private readonly scansService: ScansService, 
+        private readonly progressService: ProgressService
+    ) {}
 
     @Get()
     @UseGuards(JwtAuthGuard)
@@ -41,14 +55,15 @@ export class ScansController {
             const orderColumn = query.order?.[0]?.column;
             const orderDir = query.order?.[0]?.dir;
             const searchValue = req.query['search[value]']?.toString();
+            
             const parsedStartDate = query.startDate
-                ? parse(query.startDate, 'MMM d, yyyy', new Date()).toISOString().slice(0, 10)
+                ? formatDate(parse(query.startDate, 'MMM d, yyyy', new Date()), 'yyyy-MM-dd')
                 : undefined;
 
             const parsedEndDate = query.endDate
-                ? parse(query.endDate, 'MMM d, yyyy', new Date()).toISOString().slice(0, 10)
+                ? formatDate(parse(query.endDate, 'MMM d, yyyy', new Date()), 'yyyy-MM-dd')
                 : undefined;
-            console.log('Search value:', searchValue);
+            console.log('Search value:', searchValue, parsedStartDate, parsedEndDate);
 
             const { scans, total } = await this.scansService.findForDataTable(
                 userId,
@@ -185,4 +200,84 @@ export class ScansController {
         res.status(500).json({ message: error.message });
         }
     }
+
+    @Get('add/new')
+    @UseGuards(JwtAuthGuard)
+    @Render('scans/add')
+    async newScansPage(@Req() req: Request) {
+        return {
+            currentPath: req.path,
+            title: 'Create New Scans',
+        };
+    }
+
+
+    @Post('upload/new')
+    @UseInterceptors(FileInterceptor('image', {
+        storage: diskStorage({
+            destination: './uploads/scans',
+            filename: (req, file, cb) => {
+                const randomName = Array(32).fill(null).map(() => 
+                    Math.round(Math.random() * 16).toString(16)).join('');
+                return cb(null, `${randomName}${extname(file.originalname)}`);
+            }
+        }),
+        fileFilter: (req, file, cb) => {
+            if (!file.originalname.match(/\.(jpg|jpeg|png|pdf)$/)) {
+                return cb(new Error('Only image and PDF files are allowed!'), false);
+            }
+            cb(null, true);
+        },
+        limits: {
+            fileSize: 1024 * 1024 * 5 // 5MB
+        }
+    }))
+    async handleUpload(@UploadedFile() file: Express.Multer.File) {
+        const imagePath = join(process.cwd(), 'uploads/scans', file.filename);
+        const imageUrl = `/uploads/scans/${file.filename}`;
+
+        const originalPath = join(process.cwd(), 'uploads/scans', file.filename);
+        const processedPath = join(process.cwd(), 'uploads/scans', `processed-${file.filename}`);
+        let worker: Worker;
+
+        await sharp(originalPath)
+            .greyscale() // Convert to grayscale
+            .normalize() // Improve contrast
+            .linear(1.1, -10) // Slight brightness/contrast adjustment
+            .sharpen({ sigma: 1 }) // Mild sharpening
+            .threshold(150) // Binary threshold
+            .toFile(processedPath);
+
+        // 2. Configure Tesseract for optimal OCR
+        worker = await createWorker();
+        await worker.reinitialize('eng');
+        
+        await worker.setParameters({
+            // Use the proper enum values
+            tessedit_pageseg_mode: PSM.AUTO, // Instead of numeric value
+            tessedit_ocr_engine_mode: OEM.LSTM_ONLY,
+            preserve_interword_spaces: '1',
+            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.,$€£ ',
+        });
+
+        try {
+            const { data } = await worker.recognize(processedPath);
+
+            // 4. Post-process text
+            const cleanedText = data.text
+                .replace(/\s+/g, ' ')
+                .replace(/[^\w\s$€£.,-]/g, '')
+                .trim();
+
+            return {
+                text: cleanedText,
+                originalImage: `/uploads/scans/${file.filename}`,
+                confidence: data.confidence,
+            };
+        } finally {
+            await worker.terminate();
+        }
+    }
+
+    
 }
