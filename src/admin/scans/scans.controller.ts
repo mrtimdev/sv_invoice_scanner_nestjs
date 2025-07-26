@@ -1,23 +1,32 @@
-import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers  } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException  } from '@nestjs/common';
 import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
 import { User } from 'src/entities/user.entity';
 import { ScansService } from './scans.service';
 import { JwtAuthGuard } from 'src/api/auth/guards/jwt-auth.guard';
 import { basename, extname, join } from 'path';
-import { createReadStream, existsSync } from 'fs';
+import { createReadStream, existsSync, unlinkSync } from 'fs';
 import { format } from 'util';
 import { parse, format as formatDate } from 'date-fns';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { createWorker, OEM, PSM, Worker } from 'tesseract.js';
 import * as sharp from 'sharp';
+import * as path from 'path';
+
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+import fs from 'fs/promises';    // Promises version for async operations
 
 import * as archiver from 'archiver';
-import { promises as fs } from 'fs';
+import { promises as fsPromises } from 'fs';
 import { interval, map, Observable } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { ProgressService } from 'src/progress/progress.service';
+import { DocumentProcessorService } from './document-processor.service';
 // import { ProgressService } from '../progress/progress.service';
 
 @UseGuards(AuthenticatedGuard)
@@ -26,7 +35,8 @@ export class ScansController {
     private readonly logger = new Logger(ScansController.name);
     constructor(
         private readonly scansService: ScansService, 
-        private readonly progressService: ProgressService
+        private readonly progressService: ProgressService,
+        private readonly documentProcessor: DocumentProcessorService
     ) {}
 
     @Get()
@@ -54,6 +64,10 @@ export class ScansController {
             const length = parseInt(query.length);
             const orderColumn = query.order?.[0]?.column;
             const orderDir = query.order?.[0]?.dir;
+            const searchNo = req.query['no']?.toString();
+            const searchSaleOrder = req.query['saleOrder']?.toString();
+
+
             const searchValue = req.query['search[value]']?.toString();
             
             const parsedStartDate = query.startDate
@@ -63,6 +77,16 @@ export class ScansController {
             const parsedEndDate = query.endDate
                 ? formatDate(parse(query.endDate, 'MMM d, yyyy', new Date()), 'yyyy-MM-dd')
                 : undefined;
+
+            const parsedInvoiceStartDate = query.invoiceStartDate
+                ? formatDate(parse(query.invoiceStartDate, 'MMM d, yyyy', new Date()), 'yyyy-MM-dd')
+                : undefined;
+
+            const parsedInvoiceSEndDate = query.invoiceEndDate
+                ? formatDate(parse(query.invoiceEndDate, 'MMM d, yyyy', new Date()), 'yyyy-MM-dd')
+                : undefined;
+
+
             console.log('Search value:', searchValue, parsedStartDate, parsedEndDate);
 
             const { scans, total } = await this.scansService.findForDataTable(
@@ -73,7 +97,11 @@ export class ScansController {
                 orderColumn,
                 orderDir,
                 parsedStartDate,
-                parsedEndDate
+                parsedEndDate,
+                parsedInvoiceStartDate,
+                parsedInvoiceSEndDate,
+                searchNo,
+                searchSaleOrder
             );
             
             return {
@@ -95,8 +123,20 @@ export class ScansController {
     @UseGuards(JwtAuthGuard)
     async getScanById(@Param('id') id: string, @Req() req: Request & { user: User }) {
         const scan = await this.scansService.findById(+id);
+        if (!scan) {
+            throw new NotFoundException(`Scan with ID ${id} not found.`);
+        }
+        let filename = path.basename(scan.imagePath);
+                const croppedPath_ = join(process.cwd(), 'uploads', 'scans', `cropped-${filename}`);
+                const croppedPath = existsSync(croppedPath_)
+                    ? `/uploads/scans/cropped-${filename}`
+                    : null;
+
         return {
-            scan: scan 
+            scan: {
+                ...scan,
+                croppedPath, 
+            },
         };
     }
 
@@ -201,6 +241,15 @@ export class ScansController {
         }
     }
 
+    @Post('deleted-scans')
+    async downloadScans(@Body() body: { ids: number[] }, @Res() res: Response) {
+        try {
+        await this.scansService.removeScans(body.ids, res);
+        } catch (error) {
+        res.status(500).json({ message: error.message });
+        }
+    }
+
     @Get('add/new')
     @UseGuards(JwtAuthGuard)
     @Render('scans/add')
@@ -232,52 +281,15 @@ export class ScansController {
             fileSize: 1024 * 1024 * 5 // 5MB
         }
     }))
+    
+
+
     async handleUpload(@UploadedFile() file: Express.Multer.File) {
-        const imagePath = join(process.cwd(), 'uploads/scans', file.filename);
-        const imageUrl = `/uploads/scans/${file.filename}`;
-
-        const originalPath = join(process.cwd(), 'uploads/scans', file.filename);
-        const processedPath = join(process.cwd(), 'uploads/scans', `processed-${file.filename}`);
-        let worker: Worker;
-
-        await sharp(originalPath)
-            .greyscale() // Convert to grayscale
-            .normalize() // Improve contrast
-            .linear(1.1, -10) // Slight brightness/contrast adjustment
-            .sharpen({ sigma: 1 }) // Mild sharpening
-            .threshold(150) // Binary threshold
-            .toFile(processedPath);
-
-        // 2. Configure Tesseract for optimal OCR
-        worker = await createWorker();
-        await worker.reinitialize('eng');
-        
-        await worker.setParameters({
-            // Use the proper enum values
-            tessedit_pageseg_mode: PSM.AUTO, // Instead of numeric value
-            tessedit_ocr_engine_mode: OEM.LSTM_ONLY,
-            preserve_interword_spaces: '1',
-            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-.,$€£ ',
-        });
-
-        try {
-            const { data } = await worker.recognize(processedPath);
-
-            // 4. Post-process text
-            const cleanedText = data.text
-                .replace(/\s+/g, ' ')
-                .replace(/[^\w\s$€£.,-]/g, '')
-                .trim();
-
-            return {
-                text: cleanedText,
-                originalImage: `/uploads/scans/${file.filename}`,
-                confidence: data.confidence,
-            };
-        } finally {
-            await worker.terminate();
-        }
+        return this.documentProcessor.processDocument(file);
     }
+
 
     
 }
+
+

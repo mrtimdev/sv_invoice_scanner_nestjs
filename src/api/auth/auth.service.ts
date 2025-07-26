@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -50,12 +50,12 @@ export class AuthService {
 
         console.log({isEmail, user})
         if (!user) {
-        throw new UnauthorizedException('Invalid credentials');
+            throw new UnauthorizedException('Invalid credentials');
         }
 
         const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
         if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
+            throw new UnauthorizedException('Invalid credentials');
         }
 
         const payload = { 
@@ -67,6 +67,52 @@ export class AuthService {
         
         return {
             success: true,
+            access_token: this.jwtService.sign(payload),
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                roles: user.roles
+            }
+        };
+    }
+    // web admin login
+    async loginOnWebAdmin(loginDto: LoginDto) {
+        // Input validation
+        if (!loginDto.identifier || !loginDto.password) {
+            throw new BadRequestException('Credentials required');
+        }
+
+        // Find user
+        const isEmail = loginDto.identifier.includes('@');
+        const user = isEmail
+            ? await this.usersService.findByEmail(loginDto.identifier)
+            : await this.usersService.findByUsername(loginDto.identifier);
+
+        // Security: Generic error message
+        if (!user) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+
+        // Password validation
+        const isPasswordValid = await bcrypt.compare(
+            loginDto.password, 
+            user.password
+        );
+
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+
+        // JWT payload
+        const payload = { 
+            sub: user.id,
+            username: user.username,
+            email: user.email,
+            roles: user.roles
+        };
+        
+        return {
             access_token: this.jwtService.sign(payload),
             user: {
                 id: user.id,

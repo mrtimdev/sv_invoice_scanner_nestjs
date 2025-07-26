@@ -7,6 +7,8 @@ import { join } from 'path';
 import * as archiver from 'archiver';
 import { promises as fs } from 'fs';
 import { Response } from 'express';
+import { existsSync } from 'fs';
+import * as path from 'path';
 
 
 @Injectable()
@@ -39,7 +41,12 @@ export class ScansService {
 
         // Delete file from filesystem
         const filePath = join(process.cwd(), scan.imagePath);
+        let filename = path.basename(scan.imagePath);
+        const croppedPath_ = join(process.cwd(), 'uploads', 'scans', `cropped-${filename}`);
         try {
+            if (existsSync(croppedPath_)) {
+                await unlink(croppedPath_);
+            } 
             await unlink(filePath);
         } catch (err) {
         console.error(`Failed to delete file ${filePath}:`, err);
@@ -68,7 +75,11 @@ export class ScansService {
         orderColumn?: number,
         orderDir?: 'asc' | 'desc',
         startDate?: string,
-        endDate?: string
+        endDate?: string,
+        invoiceStartDate?: string,
+        invoiceEndDate?: string,
+        searchNo?: string,
+        searchSaleOrder?: string
     ) {
         // Create query builder or ORM query
         let query = this.scanRepository.createQueryBuilder('scan')
@@ -84,6 +95,20 @@ export class ScansService {
         }
         if (endDate) {
             query = query.andWhere('DATE(scan.date) <= :endDate', { endDate });
+        }
+        if (searchNo) {
+            query = query.andWhere('scan.sale_order LIKE :searchNo', { searchNo: `%${searchNo}%` });
+        }
+        if (searchSaleOrder) {
+            query = query.andWhere('scan.sale_order LIKE :searchSaleOrder', { searchSaleOrder: `%${searchSaleOrder}%` });
+        }
+
+
+        if (invoiceStartDate) {
+            query = query.andWhere('DATE(scan.invoice_date) >= :invoiceStartDate', { invoiceStartDate });
+        }
+        if (invoiceEndDate) {
+            query = query.andWhere('DATE(scan.invoice_date) <= :invoiceEndDate', { invoiceEndDate });
         }
 
         console.log({searchValue, orderDir, length, startDate, endDate})
@@ -103,12 +128,27 @@ export class ScansService {
             const orderBy = columns[orderColumn] || 'scan.date';
             query = query.orderBy(orderBy, orderDir.toUpperCase() as 'ASC' | 'DESC');
         }
+
+        query.orderBy('id', 'DESC');
         
-        const [scans, total] = await query.getManyAndCount();
-        
+        const [scans_, total] = await query.getManyAndCount();
+
+        const scans = await Promise.all(scans_.map(scan => this.addCroppedPath(scan)));
         return { scans, total };
     }
 
+
+    private async addCroppedPath(scan: Scan): Promise<any> {
+        let filename = path.basename(scan.imagePath);
+        const croppedPath_ = join(process.cwd(), 'uploads', 'scans', `cropped-${filename}`);
+        const croppedPath = existsSync(croppedPath_)
+            ? `/uploads/scans/cropped-${filename}`
+            : null;
+        return {
+            ...scan,
+            croppedPath
+        };
+    }
 
     async findById(id: number): Promise<Scan | null> {
         const scan = await this.scanRepository.findOneBy({ id: id });
@@ -168,5 +208,44 @@ export class ScansService {
         // Finalize archive
         await archive.finalize();
     }
+
+
+
+    async removeScans(scanIds: number[], res: Response): Promise<void> {
+        try {
+            if (!scanIds || scanIds.length === 0) {
+                res.status(400).json({ message: 'No scan IDs provided' });
+                return;
+            }
+            const scans = await this.getScansByIds(scanIds);
+            if (scans.length === 0) {
+                res.status(404).json({ message: 'No scans found for the provided IDs' });
+                return;
+            }
+            for (const scan of scans) {
+            const filePath = join(process.cwd(), scan.imagePath);
+            const filename = path.basename(scan.imagePath);
+            const croppedPath = join(process.cwd(), 'uploads', 'scans', `cropped-${filename}`);
+
+            try {
+                if (existsSync(filePath)) {
+                    await unlink(filePath);
+                }
+                if (existsSync(croppedPath)) {
+                    await unlink(croppedPath);
+                }
+            } catch (err) {
+                console.error(`Failed to delete files for scan ID ${scan.id}:`, err);
+                // Continue with other files even if one fails
+            }
+        }
+            await this.scanRepository.delete(scanIds); 
+            res.status(200).json({ message: 'Scans deleted successfully', deletedIds: scanIds });
+        } catch (error) {
+            console.error('Error deleting scans:', error);
+            res.status(500).json({ message: 'An error occurred while deleting scans' });
+        }
+    }
+
 
 }

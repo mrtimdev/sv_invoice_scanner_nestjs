@@ -21,4 +21,5 @@ export interface DashboardDataDto {
   monthlyTrendValues: string;
   recentActivity?: string; // Make it optional since it wasn't in original interface
   currentYear: number;
+  currentPath?: string; 
 }

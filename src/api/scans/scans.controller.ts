@@ -22,8 +22,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ScanInterceptor } from './interceptors/scan.interceptor';
+import { TextParserService } from './text-parser.service';
+import { AdminService } from 'src/admin/admin.service';
+import { ScanType } from 'src/enums/scan-type.enum';
 
 @ApiTags('scans')
 @ApiBearerAuth()
@@ -31,7 +34,10 @@ import { ScanInterceptor } from './interceptors/scan.interceptor';
 @UseGuards(JwtAuthGuard)
 @UseInterceptors(ScanInterceptor)
 export class ScansController {
-    constructor(private readonly scanService: ScansService) {}
+    constructor(private readonly scanService: ScansService, 
+        private readonly textParserService: TextParserService,
+        private readonly adminService: AdminService
+    ) {}
 
 
     @Get()
@@ -44,7 +50,7 @@ export class ScansController {
         @Query('search') search?: string,
         @Query('filter') filter?: string,
         ) {
-    return await this.scanService.paginatedForUser(
+        return await this.scanService.paginatedForUser(
             req.user.id,
             +limit,
             before,
@@ -75,19 +81,106 @@ export class ScansController {
             fileSize: 1024 * 1024 * 5 // 5MB
         }
     }))
+
+    @ApiBody({
+        schema: {
+        type: 'object',
+        properties: {
+            file: {
+            type: 'string',
+            format: 'binary',
+            },
+            text: { type: 'string' },
+        },
+        },
+    })
     @ApiOperation({ summary: 'Upload a new scan' })
     async create(
         @UploadedFile() file: Express.Multer.File,
         @Body('text') text: string,
+        @Body('scanType') scanType: string,
         @Req() req: Request & { user: User }
     ) {
-        const createScanDto = {
-        imagePath: `/uploads/scans/${file.filename}`,
-        scannedText: text
-        };
         
-        return this.scanService.create(createScanDto, req.user);
+        const normalizedType = scanType?.toUpperCase() as ScanType;
+
+        const isValidScanType = Object.values(ScanType).includes(normalizedType);
+        const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
+        const createScanDto = {
+            imagePath: `/uploads/scans/${file.filename}`,
+            scannedText: text,
+            scanType: finalScanType,
+        };
+
+        const scan = await this.scanService.create(createScanDto, req.user);
+        if(finalScanType === ScanType.KHB) {
+            const invoiceData = this.textParserService.extractDocumentFields(text);
+            if (invoiceData) {     
+                const {
+                    route,
+                    saleOrder,
+                    warehouse,
+                    vendorCode,
+                    vehicleNo,
+                    effectiveDate,
+                    invoiceDate,
+                } = invoiceData;
+
+                const toStringOrNull = (val: any): string | null => {
+                    if (typeof val === 'string') return val;
+                    if (Array.isArray(val)) return val.join(', ');
+                    if (val && typeof val === 'object') return JSON.stringify(val);
+                    return null;
+                };
+
+                const updatedFields = {
+                    route: toStringOrNull(route),
+                    saleOrder: toStringOrNull(saleOrder),
+                    warehouse: toStringOrNull(warehouse),
+                    vendorCode: toStringOrNull(vendorCode),
+                    vehicleNo: toStringOrNull(vehicleNo),
+                    effectiveDate: this.parseDate(typeof effectiveDate === 'string' ? effectiveDate : ''),
+                    invoiceDate: this.parseDate(typeof invoiceDate === 'string' ? invoiceDate : ''),
+                };
+
+                await this.scanService.update(scan.id, updatedFields);
+
+                const codes = this.textParserService.extractCodesWithContext(text);
+                const extractNoSectionValues = this.textParserService.extractNoSectionValues(text);
+                console.log({invoiceData, codes, extractNoSectionValues});
+            }
+        }
+        
+        
+        const setting = await this.adminService.getSetting();
+        console.log({finalScanType});
+        if (setting && setting.is_scan_with_ai) {
+            await this.scanService.removeBackgroundAndAutoCrop(file, scan.imagePath);
+            console.log('AI Scan is enabled. Background removal and autocrop applied.');
+        }
+        
+        return scan;
     }
+
+    private  parseDate =  (dateStr: string): Date | null => {
+        if (!dateStr) return null;
+
+        // Try ISO-style date first
+        if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        // Try DD.MM.YYYY or DD/MM/YYYY
+        const parts = dateStr.split(/[./]/);
+        if (parts.length === 3) {
+            const [day, month, year] = parts.map(Number);
+            const date = new Date(year, month - 1, day);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        return null;
+    };
 
     @Get('file/:filename')
     async getFile(
@@ -95,7 +188,7 @@ export class ScansController {
         @Res() res: Response
     ) {
         res.sendFile(filename, {
-        root: './uploads/scans'
+            root: './uploads/scans'
         });
     }
 

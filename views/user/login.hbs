@@ -97,6 +97,47 @@
             color: #1d4ed8; /* blue-700 */
             text-decoration: underline;
         }
+        /* Error Styling */
+        .error-message {
+        background-color: #fef2f2;
+        border-left: 4px solid #ef4444;
+        color: #b91c1c;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0.375rem;
+        }
+
+        .error-field {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+        }
+
+        /* Input Styling */
+        .input-field {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        }
+
+        .input-field:focus {
+        outline: none;
+        ring: 2px;
+        ring-color: #3b82f6;
+        }
+
+        /* Button Styling */
+        .submit-button {
+        width: 100%;
+        background-color: #2563eb;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        }
+
+        .submit-button:hover {
+        background-color: #1d4ed8;
+        }
     </style>
 </head>
 <body>
@@ -105,13 +146,42 @@
         <p class="text-lg text-center text-gray-600 mb-8">Sign in to continue</p>
 
         <form action="/admin/user/login" method="POST" class="space-y-6">
+            {{#if error}}
+                <div class="error-message">
+                    {{#eq error "auth_failed"}}
+                        Invalid username or password
+                    {{else}}
+                        {{#eq error "missing_credentials"}}
+                            Please enter both email/username and password
+                        {{else}}
+                            Login failed. Please try again
+                        {{/eq}}
+                    {{/eq}}
+                </div>
+            {{/if}}
+
             <div>
                 <label for="identifier" class="block text-sm font-medium text-gray-700 mb-2">Username or Email</label>
-                <input type="text" id="identifier" name="identifier" class="input-field" placeholder="admin" required>
+                <input 
+                    type="text" 
+                    id="identifier" 
+                    name="identifier" 
+                    class="input-field {{#if error}}error-field{{/if}}" 
+                    placeholder="admin" 
+                    value="{{identifier}}"
+                    required
+                >
             </div>
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                <input type="password" id="password" name="password" class="input-field" placeholder="password" required>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="input-field {{#if error}}error-field{{/if}}" 
+                    placeholder="password" 
+                    required
+                >
                 <div class="text-right mt-2">
                     <a href="/forgot-password" class="text-sm text-link">Forgot Password?</a>
                 </div>

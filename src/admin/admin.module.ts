@@ -9,11 +9,16 @@ import { ReportController } from './report/report.controller';
 import { ReportModule } from './report/report.module';
 import { UserController } from './user/user.controller';
 import { UserModule } from './user/user.module';
+import { Setting } from 'src/entities/setting.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [AuthModule, ScansModule, ReportModule, UserModule],
+  imports: [AuthModule, ScansModule, ReportModule, UserModule,
+    TypeOrmModule.forFeature([Setting])
+  ],
   controllers: [AdminController, ScansController, ReportController, UserController],
-  providers: [AdminService]
+  providers: [AdminService],
+  exports: [AdminService],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {

@@ -53,13 +53,20 @@
                     </li>
                 </ol>
             </nav>
-            <button id="download-selected" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                <i class="fi fi-sr-zip-file"></i> Download Selected as ZIP
-            </button>
+            <div class="flex items-center gap-2">
+                <button id="download-selected" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                    <i class="fi fi-sr-zip-file"></i> Download as ZIP
+                </button>
+                <button id="delete-selected" class="bg-rose-700 hover:bg-rose-700-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                    <i class="fi fi-sr-delete-document"></i> Delete Scans
+                </button>
+            </div>
         </div>
 
+        <h5>Filter by Scanned date</h5>
+
         <div id="bc" class="flex justify-between items-center gap-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg w-full mb-8 p-4 transition-colors duration-200">
-            <div id="customRangePicker" class="hidden sm:flex gap-2 flex-1">
+            <div class="hidden sm:flex gap-2 flex-1">
                 <input type="text" id="startDate" class="datepicker text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 w-full" placeholder="Start Date">
                 <span class="flex items-center text-gray-400">to</span>
                 <input type="text" id="endDate" class="datepicker text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 w-full" placeholder="End Date">
@@ -71,6 +78,30 @@
             <button id="resetFilter" class="bg-danger hover:bg-danger-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
                 <i class="fi fi-sr-clear-alt"></i>Reset
             </button>
+        </div>
+
+        <h5>Filter by Invoice date</h5>
+        <div id="bc" class="flex justify-between items-center gap-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg w-full mb-8 p-4 transition-colors duration-200">
+            <div class="hidden sm:flex gap-2 flex-1">
+                <input type="text" id="invoiceStartDate" class="datepicker text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 w-full" placeholder="Start Date">
+                <span class="flex items-center text-gray-400">to</span>
+                <input type="text" id="invoiceEndDate" class="datepicker text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 w-full" placeholder="End Date">
+            </div>
+            
+            <button id="applyInvoiceDateFilter" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                <i class="fas fa-filter"></i> Apply
+            </button>
+            <button id="resetInoiceDateFilter" class="bg-danger hover:bg-danger-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                <i class="fi fi-sr-clear-alt"></i>Reset
+            </button>
+        </div>
+
+        <h5>Filter by No / Sale Order</h5>
+        <div id="bc" class="flex justify-between items-center gap-4 bg-white dark:bg-gray-800 shadow-lg rounded-lg w-full mb-8 p-4 transition-colors duration-200">
+            <div class="hidden sm:flex gap-2 flex-1">
+                <input type="text" id="no" class="text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 w-full" placeholder="No.">
+                <input type="text" id="saleOrder" class="text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 w-full" placeholder="Sale Order">
+            </div>
         </div>
 
         <!-- Main Content -->
@@ -89,6 +120,8 @@
 
                             </th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">Image</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">Cropped</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">Invoice Date</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">Scanned Text</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">Created At</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">Actions</th>
@@ -124,11 +157,87 @@
 
 
 
+
+
+
+
 {{#section "scripts"}}
 
 
 <script src="/assets/datatables.net/js/dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+<!-- Alpine.js Modal -->
+<div class="" x-data="{ showModal: false, scanData: null }" @scan-details.window="scanData = $event.detail; showModal = true">
+  <!-- Modal Overlay -->
+  <div 
+    x-show="showModal" 
+    x-transition 
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+  >
+    <!-- Modal Content -->
+    <div 
+      class=" bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6"
+      @click.away="showModal = false"
+    >
+      <h2 class="text-xl font-semibold mb-4">Scan Details</h2>
+
+      <template x-if="scanData?.scan">
+        <div>
+          <!-- Scan Date -->
+          <p class="mb-2">
+            <strong>Date:</strong> 
+            <span 
+              x-text="new Date(scanData.scan.date).toLocaleString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric', 
+                  hour: 'numeric', 
+                  minute: 'numeric', 
+                  second: 'numeric', 
+                  hour12: true 
+              })"
+            ></span>
+          </p>
+
+          <!-- Scan Original Image -->
+          <div class="mb-4">
+            <strong>Original Image:</strong>
+            <img 
+              :src="scanData.scan.imagePath" 
+              alt="Original Image" 
+              class="mt-2 rounded border max-h-60 w-full object-contain"
+            />
+          </div>
+
+          <!-- Cropped Image if exists -->
+          <template x-if="scanData.scan.croppedPath">
+            <div class="mb-4">
+              <strong>Cropped Image:</strong>
+              <img 
+                :src="scanData.scan.croppedPath" 
+                alt="Cropped Image" 
+                class="mt-2 rounded border max-h-60 w-full object-contain"
+              />
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Close Button -->
+      <div class="text-right">
+        <button 
+          @click="showModal = false" 
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 
     <script>
@@ -150,12 +259,17 @@
                     data: function (d) {
                         d.startDate = $('#startDate').val();
                         d.endDate = $('#endDate').val();
+                        d.invoiceStartDate = $('#invoiceStartDate').val();
+                        d.invoiceEndDate = $('#invoiceEndDate').val();
+                        d.no = $('#no').val();
+                        d.saleOrder = $('#saleOrder').val();
                     },
                 },
                 
                 columns: [
                     { 
                         data: 'id',
+                        className: 'text-center',
                         render: function(data, type, row, meta) {
                             return `
                                 <input type="checkbox" 
@@ -175,6 +289,24 @@
                                 'No image';
                         },
                         orderable: false,
+                        width: '15%'
+                    },
+                    { 
+                        data: 'croppedPath',
+                        render: function(data) {
+                            return data ? 
+                                `<img src="${data}" class="scan-thumbnail" style="max-height: 50px;">` : 
+                                'No image';
+                        },
+                        orderable: false,
+                        width: '15%'
+                    },
+                    { 
+                        data: 'invoiceDate',
+                        render: function(data) {
+                            if (!data) return 'N/A';
+                            return new Date(data).toLocaleDateString();
+                        },
                         width: '15%'
                     },
                     { 
@@ -226,10 +358,48 @@
                 ],
                 order: [[3, 'desc']], 
                 responsive: true,
+                createdRow: function (row, data, dataIndex) {
+                    $(row).attr('data-id', data.id);
+                    $(row).addClass('scan-row');
+                },
         });
 
+        $('#scansTable tbody').on('click', 'tr.scan-row td', function (e) {
+            const $td = $(this);
+            const $tr = $td.closest('tr');
+
+            const index = $td.index();
+            const lastIndex = $tr.find('td').length - 1;
+
+            if (index === 0 || index === lastIndex) {
+                return; // Skip first and last td
+            }
+
+            const scanId = $tr.data('id');
+
+            if (scanId) {
+                $.ajax({
+                    url: `/admin/scans/${scanId}`, 
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        // ✅ Do something with the scan data (show in modal, etc.)
+                        console.log('Scan details:', data);
+
+                        window.dispatchEvent(new CustomEvent('scan-details', { detail: data }));
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Failed to fetch scan details:', error);
+                        alert('Failed to fetch scan details.');
+                    }
+                });
+            }
+        });
+
+
+
         
-        $('#applyFilter').on('click', function () {
+        $('#applyFilter, #applyInvoiceDateFilter').on('click', function () {
             table.ajax.reload();
         });
         $("#resetFilter").on('click', function() {
@@ -237,9 +407,55 @@
             table.ajax.reload();
         });
 
+         $("#resetInoiceDateFilter").on('click', function() {
+            $('#invoiceStartDate, #invoiceEndDate').val('');
+            table.ajax.reload();
+        });
+
+        $("#no, #saleOrder").on('keyup', function() {
+            table.ajax.reload();
+        });
+
         $('#check-all').on('click', function() {
             $('.check-row').prop('checked', $(this).prop('checked'));
         });
+
+
+
+
+        
+        $('#delete-selected').click(function () {
+            const selectedIds = $('.check-row:checked')
+                .map(function () {
+                    return $(this).val();
+                })
+                .get();
+
+            if (selectedIds.length === 0) {
+                alert('Please select at least one scan to delete');
+                return;
+            }
+
+            // Confirm before deleting
+            if (!confirm(`Are you sure you want to delete ${selectedIds.length} scan(s)? This action cannot be undone.`)) {
+                return;
+            }
+
+            $.ajax({
+                url: '/admin/scans/deleted-scans', // ✅ updated to match your route
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ ids: selectedIds }),
+                success: function (response) {
+                    alert('Scans deleted successfully');
+                    table.ajax.reload();
+                },
+                error: function (xhr) {
+                    alert('Error deleting scans: ' + (xhr.responseJSON?.message || xhr.statusText));
+                }
+            });
+        });
+
 
         
     });

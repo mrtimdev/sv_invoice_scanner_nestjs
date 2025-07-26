@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Render, Res, UseGuards, Body, Req, HttpStatus, HttpCode, Query } from '@nestjs/common';
+import { Controller, Get, Post, Render, Res, UseGuards, Body, Req, HttpStatus, HttpCode, Query, BadRequestException, Redirect } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
@@ -13,22 +13,26 @@ import { ReportService } from './report/report.service';
 import { DashboardDataDto } from './report/dto/report-data.dto';
 import { User } from 'src/entities/user.entity';
 import { ReportFilterDto } from './report/dto/filter.dto';
+import { AdminService } from './admin.service';
 
 @Controller('admin')
 export class AdminController {
     constructor(
         private authService: AuthService, 
         private readonly configService: ConfigService,
-        private readonly reportService: ReportService
+        private readonly reportService: ReportService,
+        private readonly adminService: AdminService
     ) {}
     
     @Get('user/login')
     @UseGuards(RedirectIfAuthenticatedGuard)
     @Render('user/login')
-    renderLoginPage() {
+    renderLoginPage(@Req() req: Request) {
         return { 
-            layout: false, error: null,
-            message: 'Welcome to the Admin Login Page' 
+            layout: false,
+            message: 'Welcome to the Admin Login Page',
+            error: req.query.error,
+            identifier: req.query.identifier || ''
         };
     }
 
@@ -41,29 +45,45 @@ export class AdminController {
     // @UseGuards(AuthGuard('local')) 
     // @UseGuards(LocalAuthGuard)
     @Post('user/login')
-    async adminLogin(@Body() loginDto: LoginDto, @Res() res: Response) {
+    async adminLogin(@Body() loginDto: LoginDto, @Res() res: Response, @Req() req: Request) {
+        try {
+            const { access_token, user } = await this.authService.loginOnWebAdmin(loginDto);
 
-        const token = await this.authService.login(loginDto);
-        const jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN');
+            const jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN');
 
-        let maxAgeValue: number;
-        const msResult = ms(jwtExpiresIn as any); 
-        if (typeof msResult === 'number') {
-            maxAgeValue = msResult;
-        } else {
-            console.error(`Invalid JWT_EXPIRES_IN value: ${jwtExpiresIn}. Falling back to default.`);
-            maxAgeValue = 3600000; // 1h
+            let maxAgeValue: number;
+            const msResult = ms(jwtExpiresIn as any); 
+            if (typeof msResult === 'number') {
+                maxAgeValue = msResult;
+            } else {
+                console.error(`Invalid JWT_EXPIRES_IN value: ${jwtExpiresIn}. Falling back to default.`);
+                maxAgeValue = 3600000; // 1h
+            }
+
+            res.cookie('jwt', access_token, {
+                httpOnly: true, 
+                secure: false,
+                sameSite: 'lax',
+                maxAge: maxAgeValue, 
+            });
+            console.warn("updated secure: false")
+            console.log(`Admin login successful for ${loginDto.identifier}. Redirecting to /admin/dashboard`);
+            return res.redirect('/admin/dashboard');
+        } catch (error) {
+            let redirectUrl = '/admin/user/login?error=auth_failed';
+    
+            if (error.message.includes('Credentials required')) {
+            redirectUrl = '/admin/user/login?error=missing_credentials';
+            }
+            
+            // Preserve the identifier if available
+            if (req.body.identifier) {
+            redirectUrl += `&identifier=${encodeURIComponent(req.body.identifier)}`;
+            }
+            
+            return res.redirect(redirectUrl);
         }
-
-        res.cookie('jwt', token.access_token, {
-            httpOnly: true, 
-            secure: false,//process.env.NODE_ENV === 'production', 
-            sameSite: 'lax',
-            maxAge: maxAgeValue, 
-        });
-        console.warn("updated secure: false")
-        console.log(`Admin login successful for ${loginDto.identifier}. Redirecting to /admin/dashboard`);
-        return res.redirect('/admin/dashboard');
+        
     }
 
     @UseGuards(JwtAuthGuard) 
@@ -101,6 +121,7 @@ export class AdminController {
         const recentActivity = await this.reportService.getRecentActivity(userId, filter);
         
         return {
+            currentPath: req.path,
             totalScannedInvoices: reportData.totalScans.toLocaleString(),
             invoicesScannedToday: reportData.scansToday,
             invoicesScannedThisMonth: reportData.scansThisMonth,
@@ -108,7 +129,8 @@ export class AdminController {
             monthlyTrendLabels: JSON.stringify(monthlyTrendData.labels),
             monthlyTrendValues: JSON.stringify(monthlyTrendData.values),
             recentActivity: JSON.stringify(recentActivity),
-            currentYear: new Date().getFullYear()
+            currentYear: new Date().getFullYear(),
+            
         };
     }
 
@@ -147,5 +169,54 @@ export class AdminController {
     ) {
         const userId = req.user.id;
         return this.reportService.getRecentActivity(userId, filter);
+    }
+
+
+
+    @Get('settings')
+    @Render('admin/settings')
+    async getSettingsPage(@Req() req: Request) {
+        const setting = await this.adminService.getSetting();
+        return { currentPath: req.path, setting };
+    }
+    @Post('settings/update')
+    @Redirect('/admin/settings')
+    async updateSettings(@Body() body: any) {
+        const is_scan_with_ai = body.is_scan_with_ai === 'on';
+        const description = body.description || '';
+
+        await this.adminService.updateSetting({
+            is_scan_with_ai,
+            description,
+        });
+    }
+
+
+    // api handle request
+    @Get('/settings/api')
+    async getSettingsApi(@Res() res: Response) {
+        const setting = await this.adminService.getSetting();
+        return res.status(200).json({ success: true, setting });
+    }
+    @Post('settings/api/update')
+    async updateSettingApi(@Body() body: any, @Req() req: Request, @Res() res: Response) {
+        const is_scan_with_ai = body.is_scan_with_ai === 'on' || body.is_scan_with_ai === true;
+        const description = body.description || '';
+
+        await this.adminService.updateSetting({
+            is_scan_with_ai,
+            description,
+        });
+
+        const acceptHeader = req.headers['accept'] || '';
+        const isFlutter = acceptHeader.toString().includes('application/json');
+
+        if (isFlutter) {
+            // ✅ For Flutter or API clients
+            return res.status(200).json({ success: true, message: 'Settings updated successfully.' });
+        } else {
+            // ✅ For Web (HTML form)
+            return res.redirect('/admin/settings');
+        }
     }
 }

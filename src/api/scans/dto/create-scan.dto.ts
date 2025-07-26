@@ -1,5 +1,6 @@
 // scans/dto/create-scan.dto.ts
-import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsEnum } from 'class-validator';
+import { ScanType } from 'src/enums/scan-type.enum';
 
 export class CreateScanDto {
     @IsOptional()
@@ -9,6 +10,11 @@ export class CreateScanDto {
     @IsOptional()
     @IsString()
     scannedText?: string;
+
+    @IsOptional()
+    @IsEnum(ScanType, { message: 'scanType must be KHB, GENERAL, or OTHER' })
+    scanType?: ScanType;
+    
 
     @IsOptional()
     @IsDateString()

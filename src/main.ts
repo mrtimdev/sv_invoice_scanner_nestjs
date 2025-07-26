@@ -92,8 +92,8 @@ async function bootstrap() {
       block: function(name: string) {
         return this._blocks && this._blocks[name] || '';
       },
-      eq: function (v1: any, v2: any) {
-        return v1 === v2;
+      eq: function (v1: any, v2: any, options: { fn: (arg0: any) => any; inverse: (arg0: any) => any; }) {
+        return v1 === v2 ? options.fn(this) : options.inverse(this);
       },
       ne: function (v1: any, v2: any) {
         return v1 !== v2;
