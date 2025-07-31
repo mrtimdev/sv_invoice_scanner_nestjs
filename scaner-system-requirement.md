@@ -222,3 +222,12 @@ BASE_URL="http://192.168.1.249"
 # Allowed CORS Origins (update with your actual frontend domains/IPs)
 ALLOWED_ORIGINS="http://localhost,http://192.168.1.249"
 
+
+
+GIT 
+
+rm dist.zip package-lock.json package.json
+
+
+git remote add origin https://github.com/mrtimdev/sv_invoice_scanner_nestjs.git
+deverloper@hrms-VMware-Virtual-Platform:~/sv_scanner$ git fetch origin

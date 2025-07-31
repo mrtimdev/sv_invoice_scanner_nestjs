@@ -297,7 +297,7 @@ export class ScansController {
     //     return this.documentProcessor.processDocument(file);
     // }
 
-
+    @UseGuards(JwtAuthGuard)
     async handleUpload(
         @UploadedFile() file: Express.Multer.File,
         @Body('scanType') scanType: string,
@@ -308,7 +308,7 @@ export class ScansController {
 
         const isValidScanType = Object.values(ScanType).includes(normalizedType);
         const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
-        
+        console.log(req.user)
         const createScanDto = {
             imagePath: `/uploads/scans/${file.filename}`,
             scannedText: "",
