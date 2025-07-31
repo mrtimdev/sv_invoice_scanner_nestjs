@@ -73,6 +73,8 @@ sudo systemctl stop sv-scanner
 sudo systemctl enable sv-scanner
 sudo systemctl start sv-scanner
 
+D!$$&3949acq
+
 Check status:
 sudo systemctl status sv-scanner
 
@@ -163,6 +165,11 @@ Uploads
 scp -P 22236 dist.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner
 scp -P 22236 sv_scanner_db_2025_07_31_backup.sql deverloper@192.168.1.249:/home/deverloper/
 
+scp -P 22236 dist.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner/uploads/scans
+
+D:\uploads>scp -r -P 22236 scans/* deverloper@192.168.1.249:/home/deverloper/sv_scanner/uploads/scans
+
+
 Import sql
 mysql -u root -p sv_scanner_db < ./sv_scanner_db_2025_07_31_backup.sql
 
@@ -234,7 +241,15 @@ git remote add origin https://github.com/mrtimdev/sv_invoice_scanner_nestjs.git
 deverloper@hrms-VMware-Virtual-Platform:~/sv_scanner$ git fetch origin
 
 Fetch last commit
+
+git pull origin master
+git pull origin main
+
  
 git fetch origin
 
 git log origin/master -1
+
+
+# Generate self-signed cert
+openssl req -x509 -newkey rsa:4096 -nodes -keyout key.pem -out cert.pem -days 365

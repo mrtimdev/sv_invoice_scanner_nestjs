@@ -17,9 +17,16 @@ import * as methodOverride from 'method-override';
 import * as cookieParser from 'cookie-parser';
 import { engine } from 'express-handlebars';
 
+import * as fs from 'fs';
+
 async function bootstrap() {
+  const httpsOptions = {
+    key: fs.readFileSync('/home/timdev/ssl/key.pem'),
+    cert: fs.readFileSync('/home/timdev/ssl/cert.pem'),
+  };
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn'],
+    httpsOptions
   });
 
   app.use(methodOverride('_method'));
@@ -236,7 +243,7 @@ async function bootstrap() {
 
   
   
-  await app.listen(3000, "0.0.0.0");
+  await app.listen(3443, "0.0.0.0");
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
