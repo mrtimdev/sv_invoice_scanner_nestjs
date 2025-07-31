@@ -53,13 +53,43 @@
                     </li>
                 </ol>
             </nav>
-            <div class="flex items-center gap-2">
-                <button id="download-selected" class="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                    <i class="fi fi-sr-zip-file"></i> Download as ZIP
-                </button>
-                <button id="delete-selected" class="bg-rose-700 hover:bg-rose-700-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
-                    <i class="fi fi-sr-delete-document"></i> Delete Scans
-                </button>
+            <div class="flex items-center gap-2" x-data="{ open: false }">
+                <a href="/admin/scans/add/new" class="text-white bg-gray-800 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none dark:focus:ring-gray-800 transition-colors duration-200 flex items-center">
+                    <svg class="w-4 h-4 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
+                    </svg>
+                    New
+                </a>
+                
+
+                <!-- Dropdown Toggle -->
+                <div class="relative" @click.outside="open = false">
+                    <button @click="open = !open"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                        <i class="fi fi-sr-menu-dots-vertical"></i> More
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div x-show="open" x-transition x-cloak
+                        class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+                        <ul class="py-1 text-sm text-gray-700 dark:text-gray-200">
+                            <li>
+                                <button id="download-selected"
+                                    class="w-full text-left px-4 py-2 flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                                    <i class="fi fi-sr-zip-file"></i>
+                                    <span>Download as ZIP</span>
+                                </button>
+                            </li>
+                            <li>
+                                <button id="delete-selected"
+                                    class="w-full text-left px-4 py-2 flex items-center gap-2 rounded-md text-rose-600 dark:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                                    <i class="fi fi-sr-delete-document"></i>
+                                    <span>Delete Scans</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -109,7 +139,7 @@
             <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 transition-colors duration-200">Invoice Scanning Overview</h2>
             
             <!-- Table Container -->
-            <div class="overflow-x-auto rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+            <div class="overflow-x-auto p-5 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors duration-200">
                 <table id="scansTable" class="w-full divide-y divide-gray-200 dark:divide-gray-700 border-collapse">
                     <thead class="bg-gray-50 dark:bg-gray-800 transition-colors duration-200">
                         <tr>
@@ -174,11 +204,12 @@
   <div 
     x-show="showModal" 
     x-transition 
+    x-cloak
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
   >
     <!-- Modal Content -->
     <div 
-      class=" bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-6"
+      class=" bg-white dark:bg-gray-800 rounded-md shadow-lg w-full max-w-[50rem] max-h-[90vh] overflow-y-auto p-6"
       @click.away="showModal = false"
     >
       <h2 class="text-xl font-semibold mb-4">Scan Details</h2>
@@ -186,7 +217,7 @@
       <template x-if="scanData?.scan">
         <div>
           <!-- Scan Date -->
-          <p class="mb-2">
+          <p style="position: sticky;" class="mb-2 top-[-24px] pb-[20px] pt-[20px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 p-2 shadow-sm">
             <strong>Date:</strong> 
             <span 
               x-text="new Date(scanData.scan.date).toLocaleString('en-US', { 
@@ -199,26 +230,27 @@
                   hour12: true 
               })"
             ></span>
+            <strong>Original Image:</strong>
           </p>
 
-          <!-- Scan Original Image -->
-          <div class="mb-4">
-            <strong>Original Image:</strong>
-            <img 
-              :src="scanData.scan.imagePath" 
-              alt="Original Image" 
-              class="mt-2 rounded border max-h-60 w-full object-contain"
-            />
-          </div>
+            <!-- Scan Original Image -->
+            <div class="mb-4 position-relative">
+                
+                <img 
+                :src="scanData.scan.imagePath" 
+                alt="Original Image" 
+                class="mt-2 rounded border max-h-auto w-full object-contain"
+                />
+            </div>
 
           <!-- Cropped Image if exists -->
           <template x-if="scanData.scan.croppedPath">
-            <div class="mb-4">
-              <strong>Cropped Image:</strong>
+            <div class="mb-4 position-relative">
+              <strong style="position: sticky;" class="mb-2 top-[42px] pb-[20px] pt-[20px] bg-opacity-0 text-gray-700 dark:text-gray-300 p-2 shadow-sm">Cropped Image:</strong>
               <img 
                 :src="scanData.scan.croppedPath" 
                 alt="Cropped Image" 
-                class="mt-2 rounded border max-h-60 w-full object-contain"
+                class="mt-2 rounded border max-h-auto w-full object-contain"
               />
             </div>
           </template>

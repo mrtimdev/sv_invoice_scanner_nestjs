@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ScansController } from './scans.controller';
 import { ScansService } from './scans.service';
 import { Scan } from './entities/scan.entity';
@@ -8,10 +8,22 @@ import { UsersModule } from 'src/api/users/users.module';
 import { TextParserService } from './text-parser.service';
 import { AdminService } from 'src/admin/admin.service';
 import { Setting } from 'src/entities/setting.entity';
+import { BullModule } from '@nestjs/bull';
+import { ScanProcessor } from 'src/config/scan.processor';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Scan, User, Setting])],
+  imports: [
+    
+    TypeOrmModule.forFeature([Scan, User, Setting]),
+    // BullModule.registerQueue({
+    //   name: 'image_processing', // This must match exactly
+    // }),
+    BullModule.registerQueue({
+      name: 'scan',
+    }),
+  ],
   controllers: [ScansController],
-  providers: [ScansService, TextParserService, AdminService]
+  providers: [ScansService, TextParserService, AdminService, ScanProcessor],
+  // exports: [ScansService],
 })
 export class ScansModule {}

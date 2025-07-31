@@ -19,9 +19,14 @@ import { RolesGuard } from './api/auth/guards/roles.guard';
 import { JwtAuthGuard } from './api/auth/guards/jwt-auth.guard';
 import { PermissionController } from './permission/permission.controller';
 import { PermissionModule } from './permission/permission.module';
+// import { ImageProcessingQueueModule } from './queue/image-processing-queue.module';
+import { BullModule } from '@nestjs/bull';
+import { ScanProcessor } from './config/scan.processor';
+import { ScansController } from './api/scans/scans.controller';
 
 @Module({
   imports: [
+    
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -36,7 +41,7 @@ import { PermissionModule } from './permission/permission.module';
         port: configService.get<number>('DB_PORT', 3306),
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
-        database: configService.get<string>('DB_DATABASE', 'sv_scanner_db'),
+        database: configService.get<string>('DB_DATABASE', 'sv_scanner_temp_1'),
         // entities: [Scan, User],
         entities: [
             path.join(__dirname, '../dist/**/*.entity.js'),
@@ -49,6 +54,7 @@ import { PermissionModule } from './permission/permission.module';
     }),
     AdminModule,
     PermissionModule,
+    
   ],
   controllers: [AppController, PermissionController],
   providers: [AppService, CustomConfigService,
@@ -60,6 +66,7 @@ import { PermissionModule } from './permission/permission.module';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
+    
   ],
 })
 export class AppModule {

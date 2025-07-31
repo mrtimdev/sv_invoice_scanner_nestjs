@@ -14,6 +14,8 @@ import * as FormData from 'form-data';
 import fetch from 'node-fetch';
 import * as path from 'path';
 import { ScanType } from 'src/enums/scan-type.enum';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
 
 // Define regex patterns for extracting fields
 
@@ -23,6 +25,7 @@ export class ScansService {
     constructor(
         @InjectRepository(Scan)
         private scanRepository: Repository<Scan>,
+        // @InjectQueue('image_processing') private readonly imageProcessingQueue: Queue,
     ) {}
     
 
@@ -33,8 +36,34 @@ export class ScansService {
             scanType: createScanDto.scanType || ScanType.GENERAL,
             user
         });
-        return this.scanRepository.save(scan);
+        const savedScan = await this.scanRepository.save(scan);
+        console.log('Scan created:', savedScan);
+        // await this.addToImageProcessingQueue(savedScan);
+        return savedScan;
     }
+
+
+    // private async addToImageProcessingQueue(scan: Scan) {
+    //     try {
+    //         await this.imageProcessingQueue.add(
+    //             'remove_bg_and_crop',
+    //             {
+    //                 scanId: scan.id,
+    //                 originalImagePath: scan.imagePath,
+    //             },
+    //             {
+    //                 jobId: `scan-${scan.id}`,
+    //                 removeOnComplete: true,
+    //                 attempts: 3,
+    //                 backoff: { type: 'exponential', delay: 5000 },
+    //                 timeout: 60_000, // 60 seconds
+    //             },
+    //         );
+    //         console.log(`AI processing job added for scan ID: ${scan.id}`);
+    //     } catch (error) {
+    //         console.error(`Failed to queue AI job for scan ${scan.id}: ${error.message}`);
+    //     }
+    // }
 
     async delete(id: number, userId: number): Promise<void> {
         const scan = await this.scanRepository.findOne({
@@ -258,7 +287,7 @@ export class ScansService {
 
 
 
-    async removeBackgroundAndAutoCrop(file: Express.Multer.File, image_path: string): Promise<void> {
+    async removeBackgroundAndAutoCrop(image_path: string): Promise<void> {
         const filename = path.basename(image_path);
         const originalPath = join(process.cwd(), 'uploads/scans', filename);
         if (!existsSync(originalPath)) {

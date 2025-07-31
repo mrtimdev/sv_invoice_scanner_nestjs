@@ -27,6 +27,12 @@ import { interval, map, Observable } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { ProgressService } from 'src/progress/progress.service';
 import { DocumentProcessorService } from './document-processor.service';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+import { AdminService } from '../admin.service';
+import { Scan } from 'src/api/scans/entities/scan.entity';
+import { ScanType } from 'src/enums/scan-type.enum';
+import { TextParserService } from 'src/api/scans/text-parser.service';
 // import { ProgressService } from '../progress/progress.service';
 
 @UseGuards(AuthenticatedGuard)
@@ -36,7 +42,10 @@ export class ScansController {
     constructor(
         private readonly scansService: ScansService, 
         private readonly progressService: ProgressService,
-        private readonly documentProcessor: DocumentProcessorService
+        private readonly textParserService: TextParserService,
+        private readonly documentProcessor: DocumentProcessorService,
+        private readonly adminService: AdminService,
+        @InjectQueue('scan') private readonly scanQueue: Queue,
     ) {}
 
     @Get()
@@ -284,10 +293,125 @@ export class ScansController {
     
 
 
-    async handleUpload(@UploadedFile() file: Express.Multer.File) {
-        return this.documentProcessor.processDocument(file);
+    // async handleUpload(@UploadedFile() file: Express.Multer.File) {
+    //     return this.documentProcessor.processDocument(file);
+    // }
+
+
+    async handleUpload(
+        @UploadedFile() file: Express.Multer.File,
+        @Body('scanType') scanType: string,
+        @Req() req: Request & { user: User }
+    ) {
+        
+        const normalizedType = scanType?.toUpperCase() as ScanType;
+
+        const isValidScanType = Object.values(ScanType).includes(normalizedType);
+        const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
+        
+        const createScanDto = {
+            imagePath: `/uploads/scans/${file.filename}`,
+            scannedText: "",
+            scanType: finalScanType,
+        };
+
+        const { text, confidence } = await this.documentProcessor.OCRText(createScanDto.imagePath);
+        console.log('OCR Text:', text, 'Confidence:', confidence);
+        if( !text) {
+            throw new InternalServerErrorException('OCR failed to extract text from the document');
+        }
+
+        createScanDto.scannedText = text;
+
+        const scan = await this.scansService.create(createScanDto, req.user);
+        if(finalScanType === ScanType.KHB) {
+            const invoiceData = this.textParserService.extractDocumentFields(text);
+            if (invoiceData) {     
+                const {
+                    route,
+                    saleOrder,
+                    warehouse,
+                    vendorCode,
+                    vehicleNo,
+                    effectiveDate,
+                    invoiceDate,
+                } = invoiceData;
+
+                const toStringOrNull = (val: any): string | null => {
+                    if (typeof val === 'string') return val;
+                    if (Array.isArray(val)) return val.join(', ');
+                    if (val && typeof val === 'object') return JSON.stringify(val);
+                    return null;
+                };
+
+                const updatedFields = {
+                    route: toStringOrNull(route),
+                    saleOrder: toStringOrNull(saleOrder),
+                    warehouse: toStringOrNull(warehouse),
+                    vendorCode: toStringOrNull(vendorCode),
+                    vehicleNo: toStringOrNull(vehicleNo),
+                    effectiveDate: this.parseDate(typeof effectiveDate === 'string' ? effectiveDate : ''),
+                    invoiceDate: this.parseDate(typeof invoiceDate === 'string' ? invoiceDate : ''),
+                };
+
+                await this.scansService.update(scan.id, updatedFields);
+            }
+        }
+        
+        const setting = await this.adminService.getSetting();
+
+        if (setting && setting.is_scan_with_ai) {
+            await this.addToImageProcessingQueue(scan);
+        }
+
+        
+        return scan;
     }
 
+
+    private async addToImageProcessingQueue(scan: Scan) {
+        try {
+            await this.scanQueue.add(
+                'remove_bg_and_crop',
+                {
+                    scanId: scan.id,
+                    originalImagePath: scan.imagePath,
+                },
+                {
+                    jobId: `scan-${scan.id}`,
+                    removeOnComplete: true,
+                    attempts: 3,
+                    backoff: { type: 'exponential', delay: 5000 },
+                    timeout: 60_000, // 60 seconds
+                },
+            );
+            console.log(`AI processing job added for scan ID: ${scan.id}`);
+        } catch (error) {
+            console.error(`Failed to queue AI job for scan ${scan.id}: ${error.message}`);
+        }
+    }
+
+    
+
+    private  parseDate =  (dateStr: string): Date | null => {
+        if (!dateStr) return null;
+
+        // Try ISO-style date first
+        if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        // Try DD.MM.YYYY or DD/MM/YYYY
+        const parts = dateStr.split(/[./]/);
+        if (parts.length === 3) {
+            const [day, month, year] = parts.map(Number);
+            const date = new Date(year, month - 1, day);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        return null;
+    };
 
     
 }

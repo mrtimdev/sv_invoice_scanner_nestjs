@@ -39,4 +39,25 @@ body
             text-align: end !important;
         }
     }
+
+    .dataTable {
+        thead {
+            th {
+                .dt-column-header
+                
+                {
+                    .dt-column-title
+                    {
+                        align-items: center !important;
+                    }
+                    
+                }
+            }
+        }
+    }
+    
+}
+
+[x-cloak] {
+  display: none !important;
 }

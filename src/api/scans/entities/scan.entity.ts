@@ -1,5 +1,6 @@
 // scans/scan.entity.ts
 import { User } from 'src/entities/user.entity';
+import { ProcessingStatus } from 'src/enums/scan-processing.enum';
 import { ScanType } from 'src/enums/scan-type.enum';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 
@@ -21,6 +22,16 @@ export class Scan {
         nullable: true,
     })
     scanType: ScanType;
+
+    // Add these new fields
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    processedImagePath: string; // Path to the background-removed/auto-cropped image
+
+    @Column({ type: 'enum', enum: ProcessingStatus, default: ProcessingStatus.PENDING })
+    processingStatus: ProcessingStatus; // Status of the AI processing
+
+    @Column({ type: 'text', nullable: true })
+    processingError: string; // To store error messages if processing fails
 
     @ManyToOne(() => User, user => user.scans, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'user_id' })

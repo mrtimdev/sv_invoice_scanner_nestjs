@@ -138,6 +138,40 @@ export class DocumentProcessorService {
   }
 
 
+  async OCRText(imagePath: string) {
+    const filename = path.basename(imagePath);
+    const originalPath = join(process.cwd(), 'uploads/scans', filename);
+    if (!existsSync(originalPath)) {
+        throw new Error(`Input file does not exist: ${originalPath}`);
+    }
+    let worker: Worker | null = null;
+    try {
+      worker = await createWorker();
+    //   await worker.loadLanguage('eng');
+      await worker.reinitialize('eng');
+      await worker.setParameters({
+        tessedit_pageseg_mode: PSM.AUTO,
+        tessedit_ocr_engine_mode: OEM.LSTM_ONLY,
+        preserve_interword_spaces: '1',
+      });
+
+      const { data } = await worker.recognize(originalPath);
+      
+      const cleanedText = data.text
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s$€£.,-]/g, '')
+        .trim();
+
+      return {
+        text: cleanedText,
+        confidence: data.confidence,
+      };
+    } finally {
+      if (worker) await worker.terminate();
+    }
+  }
+
+
   private async removeBackground(inputPath: string, outputPath: string): Promise<void> {
     if (!existsSync(inputPath)) {
         throw new Error(`Input file does not exist: ${inputPath}`);

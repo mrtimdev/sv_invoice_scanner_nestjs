@@ -9,6 +9,9 @@ import { promises as fs } from 'fs';
 import { Response } from 'express';
 import { existsSync } from 'fs';
 import * as path from 'path';
+import { ScanType } from 'src/enums/scan-type.enum';
+import { CreateScanDto } from 'src/api/scans/dto/create-scan.dto';
+import { User } from 'src/entities/user.entity';
 
 
 @Injectable()
@@ -245,6 +248,24 @@ export class ScansService {
             console.error('Error deleting scans:', error);
             res.status(500).json({ message: 'An error occurred while deleting scans' });
         }
+    }
+
+
+    async create(createScanDto: CreateScanDto, user: User): Promise<Scan> {
+        const scan = this.scanRepository.create({
+            imagePath: createScanDto.imagePath,
+            scannedText: createScanDto.scannedText,
+            scanType: createScanDto.scanType || ScanType.GENERAL,
+            user
+        });
+        const savedScan = await this.scanRepository.save(scan);
+        console.log('Scan created:', savedScan);
+        // await this.addToImageProcessingQueue(savedScan);
+        return savedScan;
+    }
+
+    async update(id: number, data: Partial<Scan>): Promise<void> {
+        await this.scanRepository.update(id, data);
     }
 
 

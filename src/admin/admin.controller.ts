@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Render, Res, UseGuards, Body, Req, HttpStatus, HttpCode, Query, BadRequestException, Redirect } from '@nestjs/common';
+import { Controller, Get, Post, Render, Res, UseGuards, Body, Req, HttpStatus, HttpCode, Query, BadRequestException, Redirect, Header } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
@@ -45,6 +45,7 @@ export class AdminController {
     // @UseGuards(AuthGuard('local')) 
     // @UseGuards(LocalAuthGuard)
     @Post('user/login')
+    @Header('Content-Type', 'text/plain')
     async adminLogin(@Body() loginDto: LoginDto, @Res() res: Response, @Req() req: Request) {
         try {
             const { access_token, user } = await this.authService.loginOnWebAdmin(loginDto);

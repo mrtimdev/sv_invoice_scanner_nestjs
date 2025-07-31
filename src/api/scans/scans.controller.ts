@@ -13,7 +13,8 @@ import {
   Get,
   Body,
   Res,
-  Query
+  Query,
+  Logger
 } from '@nestjs/common';
 import { ScansService } from './scans.service';
 import { Request, Response } from 'express';
@@ -22,11 +23,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ScanInterceptor } from './interceptors/scan.interceptor';
 import { TextParserService } from './text-parser.service';
 import { AdminService } from 'src/admin/admin.service';
 import { ScanType } from 'src/enums/scan-type.enum';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+import { Scan } from './entities/scan.entity';
 
 @ApiTags('scans')
 @ApiBearerAuth()
@@ -36,7 +40,8 @@ import { ScanType } from 'src/enums/scan-type.enum';
 export class ScansController {
     constructor(private readonly scanService: ScansService, 
         private readonly textParserService: TextParserService,
-        private readonly adminService: AdminService
+        private readonly adminService: AdminService,
+        @InjectQueue('scan') private readonly scanQueue: Queue,
     ) {}
 
 
@@ -95,6 +100,7 @@ export class ScansController {
         },
     })
     @ApiOperation({ summary: 'Upload a new scan' })
+    @ApiConsumes('multipart/form-data')
     async create(
         @UploadedFile() file: Express.Multer.File,
         @Body('text') text: string,
@@ -147,20 +153,83 @@ export class ScansController {
 
                 const codes = this.textParserService.extractCodesWithContext(text);
                 const extractNoSectionValues = this.textParserService.extractNoSectionValues(text);
-                console.log({invoiceData, codes, extractNoSectionValues});
+                // console.log({invoiceData, codes, extractNoSectionValues});
             }
         }
         
+        const logger = new Logger('ScanController');
         
         const setting = await this.adminService.getSetting();
-        console.log({finalScanType});
+        // console.log({finalScanType});
+        // if (setting && setting.is_scan_with_ai) {
+        //     await this.scanService.removeBackgroundAndAutoCrop(file, scan.imagePath);
+        //     console.log('AI Scan is enabled. Background removal and autocrop applied.');
+        // }
+
         if (setting && setting.is_scan_with_ai) {
-            await this.scanService.removeBackgroundAndAutoCrop(file, scan.imagePath);
-            console.log('AI Scan is enabled. Background removal and autocrop applied.');
+            await this.addToImageProcessingQueue(scan);
+            // await this.scanQueue.add('remove-bg', {
+            //     file: {
+            //         filename: file.filename,
+            //         path: file.path,
+            //         mimetype: file.mimetype,
+            //     },
+            //     imagePath: scan.imagePath,
+            // }, {
+            //     attempts: 3,
+            //     backoff: 5000, // retry after 5s on failure
+            // });
+            // await this.addToImageProcessingQueue(scan);
+            // // Add job to the queue
+            // await this.imageProcessingQueue.add(
+            //     'remove_bg_and_crop', // Job name (can have multiple job types in one queue)
+            //     {
+            //         scanId: scan.id,
+            //         originalImagePath: scan.imagePath,
+            //     },
+            //     {
+            //         jobId: `scan-${scan.id}`,
+            //         removeOnComplete: true,
+            //         removeOnFail: false,
+            //         attempts: 3, // Retry up to 3 times on failure
+            //         backoff: {
+            //             type: 'exponential', // Exponential backoff for retries
+            //             delay: 5000, // 5 seconds initial delay
+            //         },
+            //         timeout: 60000, // Job will fail if it takes longer than 60 seconds
+            //     }
+            // );
+            // console.log('AI Scan processing job added to queue.');
         }
+
         
         return scan;
     }
+
+
+    private async addToImageProcessingQueue(scan: Scan) {
+        try {
+            await this.scanQueue.add(
+                'remove_bg_and_crop',
+                {
+                    scanId: scan.id,
+                    originalImagePath: scan.imagePath,
+                },
+                {
+                    jobId: `scan-${scan.id}`,
+                    removeOnComplete: true,
+                    attempts: 3,
+                    backoff: { type: 'exponential', delay: 5000 },
+                    timeout: 60_000, // 60 seconds
+                },
+            );
+            console.log(`AI processing job added for scan ID: ${scan.id}`);
+        } catch (error) {
+            console.error(`Failed to queue AI job for scan ${scan.id}: ${error.message}`);
+        }
+    }
+
+    
 
     private  parseDate =  (dateStr: string): Date | null => {
         if (!dateStr) return null;
