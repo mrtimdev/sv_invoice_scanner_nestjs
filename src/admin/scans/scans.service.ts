@@ -259,8 +259,7 @@ export class ScansService {
             user
         });
         const savedScan = await this.scanRepository.save(scan);
-        console.log('Scan created:', savedScan);
-        // await this.addToImageProcessingQueue(savedScan);
+        console.log('Print user:', user);
         return savedScan;
     }
 

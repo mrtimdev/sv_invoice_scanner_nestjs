@@ -303,12 +303,12 @@ export class ScansController {
         @Body('scanType') scanType: string,
         @Req() req: Request & { user: User }
     ) {
-        
+        const user: User = req.user;
         const normalizedType = scanType?.toUpperCase() as ScanType;
 
         const isValidScanType = Object.values(ScanType).includes(normalizedType);
         const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
-        console.log(req.user)
+        
         const createScanDto = {
             imagePath: `/uploads/scans/${file.filename}`,
             scannedText: "",
@@ -316,14 +316,13 @@ export class ScansController {
         };
 
         const { text, confidence } = await this.documentProcessor.OCRText(createScanDto.imagePath);
-        console.log('OCR Text:', text, 'Confidence:', confidence);
         if( !text) {
             throw new InternalServerErrorException('OCR failed to extract text from the document');
         }
 
         createScanDto.scannedText = text;
 
-        const scan = await this.scansService.create(createScanDto, req.user);
+        const scan = await this.scansService.create(createScanDto, user);
         if(finalScanType === ScanType.KHB) {
             const invoiceData = this.textParserService.extractDocumentFields(text);
             if (invoiceData) {     
@@ -363,8 +362,8 @@ export class ScansController {
         if (setting && setting.is_scan_with_ai) {
             await this.addToImageProcessingQueue(scan);
         }
-
         
+        console.log({user}, {scan})
         return scan;
     }
 

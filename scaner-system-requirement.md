@@ -69,6 +69,7 @@ WantedBy=multi-user.target
 
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
+sudo systemctl stop sv-scanner
 sudo systemctl enable sv-scanner
 sudo systemctl start sv-scanner
 
@@ -231,3 +232,9 @@ rm dist.zip package-lock.json package.json
 
 git remote add origin https://github.com/mrtimdev/sv_invoice_scanner_nestjs.git
 deverloper@hrms-VMware-Virtual-Platform:~/sv_scanner$ git fetch origin
+
+Fetch last commit
+ 
+git fetch origin
+
+git log origin/master -1
