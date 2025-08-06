@@ -16,6 +16,8 @@ import * as path from 'path';
 import { ScanType } from 'src/enums/scan-type.enum';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
+import { DocumentProcessorService } from 'src/admin/scans/document-processor.service';
+import { TextParserService } from './text-parser.service';
 
 // Define regex patterns for extracting fields
 
@@ -25,6 +27,8 @@ export class ScansService {
     constructor(
         @InjectRepository(Scan)
         private scanRepository: Repository<Scan>,
+        private readonly documentProcessor: DocumentProcessorService,
+        private readonly textParserService: TextParserService,
         // @InjectQueue('image_processing') private readonly imageProcessingQueue: Queue,
     ) {}
     
@@ -32,6 +36,7 @@ export class ScansService {
     async create(createScanDto: CreateScanDto, user: User): Promise<Scan> {
         const scan = this.scanRepository.create({
             imagePath: createScanDto.imagePath,
+            originalName: createScanDto.originalName,
             scannedText: createScanDto.scannedText,
             scanType: createScanDto.scanType || ScanType.GENERAL,
             user
@@ -327,5 +332,21 @@ export class ScansService {
     async update(id: number, data: Partial<Scan>): Promise<void> {
         await this.scanRepository.update(id, data);
     }
+
+
+    // new for extract
+    extractTextWithTextParser(text: string) {
+        const results = {
+            effectiveDate: this.extractEffectiveDate(text),
+            ...this.textParserService.extractDocumentFields(text),
+        };
+        return results;
+    }
+
+    OCRText(image_path: string) {
+        return this.documentProcessor.OCRText(image_path);
+    }
+
+
 
 }

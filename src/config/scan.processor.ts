@@ -10,11 +10,18 @@ import fetch from 'node-fetch';
 import { ScansService } from 'src/api/scans/scans.service';
 import { ProcessingStatus } from 'src/enums/scan-processing.enum';
 import { ConfigService } from '@nestjs/config';
+import { ScanType } from 'src/enums/scan-type.enum';
+import { DocumentProcessorService } from 'src/admin/scans/document-processor.service';
+import { TextParserService } from 'src/api/scans/text-parser.service';
+import { User } from 'src/entities/user.entity';
+import { unlink } from 'fs/promises';
 
 @Processor('scan')
 export class ScanProcessor {
   constructor(private readonly scanService: ScansService,
-    private  readonly configService: ConfigService
+    private  readonly configService: ConfigService,
+    // private readonly documentProcessor: DocumentProcessorService,
+    // private readonly textParserService: TextParserService,
   ) {}
 
     @Process('remove_bg_and_crop')
@@ -51,6 +58,119 @@ export class ScanProcessor {
     
     }
 
+
+    @Process('process_and_create_scan')
+    async handleProcessAndCreateScan(job: Job<{ imagePath: string; originalName: string, scanType: ScanType; user: User }>) {
+        const { imagePath, originalName, scanType, user } = job.data;
+
+        job.progress(5);
+
+        if (!user) throw new Error('User not found');
+
+        const { text } = await this.scanService.OCRText(imagePath);
+        if (!text) {
+            const filePath = join(process.cwd(), imagePath);
+            const filename = path.basename(imagePath);
+            const croppedPath = join(process.cwd(), 'uploads', 'scans', `cropped-${filename}`);
+            const errorDir = join(process.cwd(), 'uploads', 'error-scans');
+
+            // Ensure the destination folder exists
+            if (!existsSync(errorDir)) {
+                await fs.promises.mkdir(errorDir, { recursive: true });
+            }
+
+            const errorFilePath = join(errorDir, filename);
+            const errorCroppedPath = join(errorDir, `cropped-${filename}`);
+
+            // Move the original file if it exists
+            if (existsSync(filePath)) {
+                await fs.promises.rename(filePath, errorFilePath);
+            }
+
+            // Move the cropped file if it exists
+            if (existsSync(croppedPath)) {
+                await fs.promises.rename(croppedPath, errorCroppedPath);
+            }
+
+            job.progress(100); // Mark job as finished
+
+            // Return something useful to log or display
+            console.table(`OCR failed for file ${filename}, moved to error-scans.`)
+            job.progress(100);
+            return {
+                success: false,
+                message: `OCR failed. File moved to error-scans: ${filename}`,
+            };
+        }
+
+            
+
+        job.progress(30);
+
+        const createScanDto = {
+            imagePath,
+            originalName,
+            scannedText: text,
+            scanType,
+        };
+
+        const scan = await this.scanService.create(createScanDto, user);
+
+        job.progress(60);
+
+        if (scanType === ScanType.KHB) {
+            const invoiceData: { [key: string]: string | string[] | null | Record<string, string[]> } = this.scanService.extractTextWithTextParser(text);
+            if (invoiceData) {
+                const toStringOrNull = (val: any): string | null => {
+                    if (typeof val === 'string') return val;
+                    if (Array.isArray(val)) return val.join(', ');
+                    if (val && typeof val === 'object') return JSON.stringify(val);
+                        return null;
+                };
+
+                const updatedFields = {
+                    route: toStringOrNull(invoiceData.route),
+                    saleOrder: toStringOrNull(invoiceData.saleOrder),
+                    warehouse: toStringOrNull(invoiceData.warehouse),
+                    vendorCode: toStringOrNull(invoiceData.vendorCode),
+                    vehicleNo: toStringOrNull(invoiceData.vehicleNo),
+                    effectiveDate: this.parseDate(typeof invoiceData.effectiveDate === 'string'
+                                        ? invoiceData.effectiveDate
+                                        : ''),
+                    invoiceDate: this.parseDate(typeof invoiceData.invoiceDate === 'string'
+                                        ? invoiceData.invoiceDate
+                                        : ''),
+                };
+
+                await this.scanService.update(scan.id, updatedFields);
+            }
+        }
+
+        job.progress(100);
+
+        return { scanId: scan.id };
+    }
+
+    private parseDate =  (dateStr: string): Date | null => {
+        if (!dateStr) return null;
+
+        // Try ISO-style date first
+        if (/\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        // Try DD.MM.YYYY or DD/MM/YYYY
+        const parts = dateStr.split(/[./]/);
+        if (parts.length === 3) {
+            const [day, month, year] = parts.map(Number);
+            const date = new Date(year, month - 1, day);
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        return null;
+    };
+
     // Optional: Listen to job completion/failure events for logging or other actions
     @OnQueueCompleted()
     onCompleted(job: Job) {
@@ -62,11 +182,4 @@ export class ScanProcessor {
         console.error(`Job ${job.id} of type ${job.name} failed with error: ${error.message}`);
     }
 
-
-
-//   async handleRemoveBg(job: Job) {
-//     const { file, imagePath } = job.data;
-//     console.log(`Processing job ${job.id} for file ${file.originalname}`);
-//     await this.scanService.removeBackgroundAndAutoCrop(file, imagePath);
-//   }
 }

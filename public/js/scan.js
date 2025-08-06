@@ -165,6 +165,50 @@ class CameraScanner {
   }
 }
 
+
+async function trackJobProgress(originalName, jobId) {
+  const maxAttempts = 30; // Max 30 attempts (30 * 2s = 1 minute timeout)
+  let attempts = 0;
+
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const response = await fetch(
+          `/admin/scans/jobs/${jobId}/progress`,
+        );
+        const progress = await response.json();
+
+        // Update UI
+        updateProgressBar(originalName, progress.value);
+
+        if (progress.value === 100) {
+          clearInterval(interval);
+          resolve(progress);
+        } else if (progress.value === -1) {
+          clearInterval(interval);
+          reject(new Error('Job processing failed'));
+        }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          reject(new Error('Progress tracking timeout'));
+        }
+      } catch (error) {
+        clearInterval(interval);
+        reject(error);
+      }
+    }, 2000); // Poll every 2 seconds
+  });
+}
+
+function updateProgressBar(originalName, progress) {
+  // Implement your UI update logic here
+  console.log(`File ${originalName} progress: ${progress}%`);
+}
+
+// Usage example
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
@@ -173,5 +217,91 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cameraError').textContent =
       'Camera API not supported in your browser';
     document.getElementById('startCamera').disabled = true;
+  }
+
+  $('#btnClearFailedJob').on('click', async function () {
+    await cleanQueue();
+  });
+
+  let selectedFiles = [];
+
+  // $('#fileInput').on('change', function () {
+  //   selectedFiles = Array.from(this.files);
+  //   const previews = selectedFiles.map(
+  //     (file, i) => `
+  //           <div class="file-preview" data-file-index="${i}">
+  //             <p>${file.name}</p>
+  //             <div class="progress-bar">
+  //               <div class="progress-fill"></div>
+  //             </div>
+  //             <div class="progress-text">Waiting...</div>
+  //             <div class="live-text"></div>
+  //           </div>
+  //         `,
+  //   );
+  //   $('#previews').html(previews.join(''));
+  // });
+
+  // $('#scanForm').on('submit', function (e) {
+  //   e.preventDefault();
+
+  //   if (selectedFiles.length === 0) {
+  //     alert('Please select files first');
+  //     return;
+  //   }
+
+  //   const formData = new FormData();
+  //   formData.append('scanType', $('#scanType').val());
+  //   selectedFiles.forEach((file) => formData.append('files', file)); // Must match `FilesInterceptor('files')`
+
+  //   $.ajax({
+  //     url: $(this).attr('action'),
+  //     type: 'POST',
+  //     data: formData,
+  //     processData: false,
+  //     contentType: false,
+  //     xhr: function () {
+  //       const xhr = new XMLHttpRequest();
+  //       xhr.upload.addEventListener('progress', function (e) {
+  //         if (e.lengthComputable) {
+  //           const percent = Math.round((e.loaded / e.total) * 100);
+  //           $('.progress-fill').css('width', percent + '%');
+  //           $('.progress-text').text(`Uploading: ${percent}%`);
+  //         }
+  //       });
+  //       return xhr;
+  //     },
+  //     beforeSend: function () {
+  //       $('.progress-text').text('Starting upload...');
+  //     },
+  //     success: function (response) {
+  //       response.results.forEach((res, i) => {
+  //         const wrapper = $(`.file-preview[data-file-index="${i}"]`);
+  //         wrapper.find('.progress-fill').css('width', '100%');
+  //         wrapper.find('.progress-text').text('Queued for scan');
+  //         // trackJobProgress(res.originalname, res.jobId);
+  //       });
+  //     },
+  //     error: function (xhr) {
+  //       $('.progress-text').text(
+  //         'Upload failed: ' + (xhr.responseJSON?.message || 'Unknown error'),
+  //       );
+  //     },
+  //   });
+  // });
+
+  async function trackJobProgress(originalName, jobId) {
+    const interval = setInterval(() => {
+      $.get(`/admin/scans/jobs/${jobId}/progress`, (data) => {
+        const wrapper = $(`.file-preview:contains(${originalName})`);
+        wrapper
+          .find('.live-text')
+          .text(`Status: ${data.status}, Progress: ${data.progress}%`);
+
+        if (data.isComplete || data.isFailed) {
+          clearInterval(interval);
+        }
+      });
+    }, 3000);
   }
 });

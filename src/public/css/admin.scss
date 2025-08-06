@@ -61,3 +61,17 @@ body
 [x-cloak] {
   display: none !important;
 }
+
+#queueMonitor {
+    width: 280px;
+    transition: all 0.3s ease;
+}
+
+#queueMonitor:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.dark #queueMonitor {   
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}

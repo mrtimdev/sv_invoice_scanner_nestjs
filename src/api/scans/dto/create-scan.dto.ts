@@ -9,6 +9,10 @@ export class CreateScanDto {
 
     @IsOptional()
     @IsString()
+    originalName?: string;
+
+    @IsOptional()
+    @IsString()
     scannedText?: string;
 
     @IsOptional()

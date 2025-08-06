@@ -3,7 +3,8 @@
 /node_modules
 /build
 /uploads
-.sh
+*.sh
+*.zip
 
 
 # Logs

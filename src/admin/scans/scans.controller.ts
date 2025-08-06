@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException  } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException, UploadedFiles  } from '@nestjs/common';
 import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
 import { User } from 'src/entities/user.entity';
@@ -8,7 +8,7 @@ import { basename, extname, join } from 'path';
 import { createReadStream, existsSync, unlinkSync } from 'fs';
 import { format } from 'util';
 import { parse, format as formatDate } from 'date-fns';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { createWorker, OEM, PSM, Worker } from 'tesseract.js';
 import * as sharp from 'sharp';
@@ -27,7 +27,7 @@ import { interval, map, Observable } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { ProgressService } from 'src/progress/progress.service';
 import { DocumentProcessorService } from './document-processor.service';
-import { Queue } from 'bull';
+import { JobStatus, Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { AdminService } from '../admin.service';
 import { Scan } from 'src/api/scans/entities/scan.entity';
@@ -266,106 +266,283 @@ export class ScansController {
         return {
             currentPath: req.path,
             title: 'Create New Scans',
+            scanTypes: Object.values(ScanType),
         };
     }
 
 
     @Post('upload/new')
-    @UseInterceptors(FileInterceptor('image', {
+    @UseInterceptors(AnyFilesInterceptor({
         storage: diskStorage({
             destination: './uploads/scans',
             filename: (req, file, cb) => {
-                const randomName = Array(32).fill(null).map(() => 
+                const randomName = Array(32).fill(null).map(() =>
                     Math.round(Math.random() * 16).toString(16)).join('');
-                return cb(null, `${randomName}${extname(file.originalname)}`);
-            }
+                cb(null, `${randomName}${extname(file.originalname)}`);
+            },
         }),
         fileFilter: (req, file, cb) => {
-            if (!file.originalname.match(/\.(jpg|jpeg|png|pdf)$/)) {
-                return cb(new Error('Only image and PDF files are allowed!'), false);
+            if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+                return cb(new Error('Only image files are allowed!'), false);
             }
             cb(null, true);
         },
         limits: {
-            fileSize: 1024 * 1024 * 5 // 5MB
+            fileSize: 1024 * 1024 * 5,
         }
     }))
-    
 
-
-    // async handleUpload(@UploadedFile() file: Express.Multer.File) {
-    //     return this.documentProcessor.processDocument(file);
-    // }
-
-    @UseGuards(JwtAuthGuard)
+   @UseGuards(JwtAuthGuard)
     async handleUpload(
-        @UploadedFile() file: Express.Multer.File,
+        @UploadedFiles() files: Express.Multer.File[],
         @Body('scanType') scanType: string,
         @Req() req: Request & { user: User }
     ) {
+        const isPaused = await this.scanQueue.isPaused();
+        await this.scanQueue.resume(true);
+        if (isPaused) {
+            await this.scanQueue.resume();
+        }
         const user: User = req.user;
-        const normalizedType = scanType?.toUpperCase() as ScanType;
-
+        const normalizedType = (scanType.toUpperCase() || '') as ScanType;
         const isValidScanType = Object.values(ScanType).includes(normalizedType);
         const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
+
+        const results: Array<{ status: string; jobId: string, originalName: string }> = [];
+
+        // Add concurrency control
+        const MAX_CONCURRENT_UPLOADS = 50; // Adjust based on your system capacity
+        const batchSize = Math.min(files.length, MAX_CONCURRENT_UPLOADS);
+
+        for (let i = 0; i < files.length; i += batchSize) {
+            const batch = files.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(async (file) => {
+                const imagePath = `/uploads/scans/${file.filename}`;
+                // Enhanced job ID with timestamp to ensure uniqueness
+                const jobId = `scan-${path.parse(file.filename).name}`;
+
+                try {
+                    await this.scanQueue.add(
+                        'process_and_create_scan',
+                        {
+                            imagePath,
+                            originalName: file.originalname,
+                            scanType: finalScanType,
+                            user: user,
+                        },
+                        {
+                            removeOnComplete: true,
+                            removeOnFail: true,
+                            jobId: jobId,
+                            attempts: 0,
+                            backoff: { type: 'exponential', delay: 5000 },
+                            timeout: 60_000,
+                        }
+                    );
+
+                    results.push({ status: 'queued', jobId: jobId, originalName: file.originalname });
+                } catch (error) {
+                    results.push({ 
+                        status: 'failed_to_queue', 
+                        jobId: jobId, 
+                        originalName: file.originalname 
+                    });
+                    console.error(`Failed to queue file ${file.originalname}:`, error);
+                }
+            }));
+        }
+
+        return {
+            message: 'Scans have been queued for processing.',
+            results,
+            totalQueued: results.filter(r => r.status === 'queued').length,
+            totalFailed: results.filter(r => r.status === 'failed_to_queue').length
+        };
+    }
+
+    @Get('queue-status')
+    async getQueueStatus() {
+        const counts = await this.scanQueue.getJobCounts();
+        return {
+            counts: {
+                waiting: counts.waiting || 0,
+                active: counts.active || 0,
+                completed: counts.completed || 0,
+                failed: counts.failed || 0
+            }
+        };
+    }
+
+    @Get('jobs/:jobId/progress')
+    @UseGuards(JwtAuthGuard)
+    async getJobProgress(
+        @Param('jobId') jobId: string,
+        @Req() req: Request & { user: User }
+    ) {
+        const job = await this.scanQueue.getJob(jobId);
         
-        const createScanDto = {
-            imagePath: `/uploads/scans/${file.filename}`,
-            scannedText: "",
-            scanType: finalScanType,
+        if (!job) {
+            throw new NotFoundException('Job not found');
+        }
+
+        const progress = await job.progress();
+        const status = await job.getState();
+
+        // Cache the result for 5 seconds to reduce queue pressure
+        const result = {
+            jobId,
+            progress,
+            status,
+            isComplete: status === 'completed',
+            isFailed: status === 'failed',
+            timestamp: Date.now()
         };
 
-        const { text, confidence } = await this.documentProcessor.OCRText(createScanDto.imagePath);
-        if( !text) {
-            throw new InternalServerErrorException('OCR failed to extract text from the document');
-        }
+        console.log(result);
 
-        createScanDto.scannedText = text;
-
-        const scan = await this.scansService.create(createScanDto, user);
-        if(finalScanType === ScanType.KHB) {
-            const invoiceData = this.textParserService.extractDocumentFields(text);
-            if (invoiceData) {     
-                const {
-                    route,
-                    saleOrder,
-                    warehouse,
-                    vendorCode,
-                    vehicleNo,
-                    effectiveDate,
-                    invoiceDate,
-                } = invoiceData;
-
-                const toStringOrNull = (val: any): string | null => {
-                    if (typeof val === 'string') return val;
-                    if (Array.isArray(val)) return val.join(', ');
-                    if (val && typeof val === 'object') return JSON.stringify(val);
-                    return null;
-                };
-
-                const updatedFields = {
-                    route: toStringOrNull(route),
-                    saleOrder: toStringOrNull(saleOrder),
-                    warehouse: toStringOrNull(warehouse),
-                    vendorCode: toStringOrNull(vendorCode),
-                    vehicleNo: toStringOrNull(vehicleNo),
-                    effectiveDate: this.parseDate(typeof effectiveDate === 'string' ? effectiveDate : ''),
-                    invoiceDate: this.parseDate(typeof invoiceDate === 'string' ? invoiceDate : ''),
-                };
-
-                await this.scansService.update(scan.id, updatedFields);
-            }
-        }
-        
-        const setting = await this.adminService.getSetting();
-
-        if (setting && setting.is_scan_with_ai) {
-            await this.addToImageProcessingQueue(scan);
-        }
-        
-        console.log({user}, {scan})
-        return scan;
+        return result;
     }
+
+    @Post('queue/clean-all')
+        async cleanAllJobs() {
+        const fs = require('fs');
+        const path = require('path');
+        const { promisify } = require('util');
+        const unlink = promisify(fs.unlink);
+        
+        // 1. Pause the queue first
+        await this.scanQueue.pause(true);
+
+        // 2. Process all job types
+        const jobTypes: JobStatus[] = ['active', 'waiting', 'delayed', 'completed', 'failed'];
+        const allJobs = await Promise.all(
+            jobTypes.map(type => this.scanQueue.getJobs([type]))
+        ).then(jobs => jobs.flat());
+
+        // 3. Delete files and remove jobs
+        const deletedFiles = new Set<string>();
+        let deletedCount = 0;
+
+        await Promise.all(allJobs.map(async job => {
+            try {
+            // Delete associated files
+            if (job?.data?.imagePath) {
+                const filePath = path.join(process.cwd(), job.data.imagePath);
+                
+                // Check for cropped version too
+                const croppedPath = path.join(
+                path.dirname(filePath),
+                `cropped-${path.basename(filePath)}`
+                );
+
+                try {
+                if (fs.existsSync(filePath)) {
+                    await unlink(filePath);
+                    deletedFiles.add(filePath);
+                }
+                if (fs.existsSync(croppedPath)) {
+                    await unlink(croppedPath);
+                    deletedFiles.add(croppedPath);
+                }
+                } catch (fileErr) {
+                this.logger.error(`Failed to delete files for job ${job.id}`, fileErr);
+                }
+            }
+
+            // Remove the job
+            await job.remove();
+            deletedCount++;
+            } catch (jobErr) {
+            this.logger.error(`Failed to remove job ${job.id}`, jobErr);
+            }
+        }));
+
+        // 4. Additional cleanup
+        await this.scanQueue.empty();
+        await this.scanQueue.clean(0, 'completed');
+        await this.scanQueue.clean(0, 'failed');
+        await this.scanQueue.resume();
+
+        return {
+            success: true,
+            deletedJobs: deletedCount,
+            deletedFiles: Array.from(deletedFiles),
+            message: `Cleaned ${deletedCount} jobs and ${deletedFiles.size} files`
+        };
+        }
+
+
+
+    // @UseGuards(JwtAuthGuard)
+    // async handleUpload(
+    //     @UploadedFile() file: Express.Multer.File,
+    //     @Body('scanType') scanType: string,
+    //     @Req() req: Request & { user: User }
+    // ) {
+    //     const user: User = req.user;
+    //     const normalizedType = scanType?.toUpperCase() as ScanType;
+
+    //     const isValidScanType = Object.values(ScanType).includes(normalizedType);
+    //     const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
+        
+    //     const createScanDto = {
+    //         imagePath: `/uploads/scans/${file.filename}`,
+    //         scannedText: "",
+    //         scanType: finalScanType,
+    //     };
+
+    //     const { text, confidence } = await this.documentProcessor.OCRText(createScanDto.imagePath);
+    //     if( !text) {
+    //         throw new InternalServerErrorException('OCR failed to extract text from the document');
+    //     }
+
+    //     createScanDto.scannedText = text;
+
+    //     const scan = await this.scansService.create(createScanDto, user);
+    //     if(finalScanType === ScanType.KHB) {
+    //         const invoiceData = this.textParserService.extractDocumentFields(text);
+    //         if (invoiceData) {     
+    //             const {
+    //                 route,
+    //                 saleOrder,
+    //                 warehouse,
+    //                 vendorCode,
+    //                 vehicleNo,
+    //                 effectiveDate,
+    //                 invoiceDate,
+    //             } = invoiceData;
+
+    //             const toStringOrNull = (val: any): string | null => {
+    //                 if (typeof val === 'string') return val;
+    //                 if (Array.isArray(val)) return val.join(', ');
+    //                 if (val && typeof val === 'object') return JSON.stringify(val);
+    //                 return null;
+    //             };
+
+    //             const updatedFields = {
+    //                 route: toStringOrNull(route),
+    //                 saleOrder: toStringOrNull(saleOrder),
+    //                 warehouse: toStringOrNull(warehouse),
+    //                 vendorCode: toStringOrNull(vendorCode),
+    //                 vehicleNo: toStringOrNull(vehicleNo),
+    //                 effectiveDate: this.parseDate(typeof effectiveDate === 'string' ? effectiveDate : ''),
+    //                 invoiceDate: this.parseDate(typeof invoiceDate === 'string' ? invoiceDate : ''),
+    //             };
+
+    //             await this.scansService.update(scan.id, updatedFields);
+    //         }
+    //     }
+        
+    //     const setting = await this.adminService.getSetting();
+
+    //     if (setting && setting.is_scan_with_ai) {
+    //         await this.addToImageProcessingQueue(scan);
+    //     }
+        
+    //     console.log({user}, {scan})
+    //     return scan;
+    // }
 
 
     private async addToImageProcessingQueue(scan: Scan) {

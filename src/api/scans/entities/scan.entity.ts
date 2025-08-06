@@ -12,6 +12,11 @@ export class Scan {
     @Column({ name: 'image_path' })
     imagePath: string;
 
+
+    @Column({ name: 'original_name', unique: false })
+    originalName: string;
+    
+
     @Column({ name: 'scanned_text', type: 'text', nullable: true })
     scannedText: string;
 

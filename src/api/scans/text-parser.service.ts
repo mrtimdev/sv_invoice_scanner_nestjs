@@ -14,11 +14,35 @@ interface ExtractedCodes {
 @Injectable()
 export class TextParserService {
     extractDocumentFields(text: string) {
-        const results = {
-            
-            
-            ...this.extractStandardFields(text),
-            };
+        const patterns: { [key: string]: RegExp } = {
+            dealerCode: /dealer\s*code\s*([^\n]+)/i,
+            route: /route\s*([^\n]+)/i,
+            saleOrder: /sale\s*order\s*([^\n]+)/i,
+            warehouse: /warehouse\s*([^\n]+)/i,
+            vendorCode: /vendor\s*code\s*([^\n]+)/i,
+            vehicleNo: /vehicle\s*no\s*([^\n]+)/i,
+        };
+
+        const keywords = [
+            'Effective Date',
+            'Dealer code',
+            'SALE ORDER',
+            'DELIVERY ORDER',
+            'WAREHOUSE'
+        ];
+
+
+
+        const results: { [key: string]: string | string[] | null | Record<string, string[]> } = {};
+        for (const [key, regex] of Object.entries(patterns)) {
+            const match = regex.exec(text);
+            results[key] = match ? match[1].trim() : null;
+        }
+
+        results.effectiveDate = this.extractEffectiveDate(text);
+        results.no = this.extractLinesBelowNo(text);
+        results.invoiceDate = this.extractPdDate(text);
+
         return results;
     }
 

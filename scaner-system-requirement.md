@@ -85,6 +85,8 @@ sudo journalctl -u sv-scanner.service -f
 sudo ufw allow 3000
 sudo ufw reload
 
+sudo ufw allow 3443
+sudo ufw reload
 
 # Create directories for uploads and backup
 mkdir -p /home/deverloper/uploads
@@ -214,6 +216,7 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 AI_SERVICE_URL="http://38.242.149.46:8000/timdev/api/v1/image_service/bg_remover"
 
+
 # Security Secrets (MUST BE LONG, RANDOM, AND UNIQUE STRINGS)
 SESSION_SECRET=TIMDEV
 
@@ -253,3 +256,57 @@ git log origin/master -1
 
 # Generate self-signed cert
 openssl req -x509 -newkey rsa:4096 -nodes -keyout key.pem -out cert.pem -days 365
+
+
+
+sudo apt install redis-server -y
+sudo systemctl start redis
+sudo systemctl status redis
+
+redis-cli ping
+
+
+
+
+SSL 
+
+Create SSL Certificate (if not yet)
+
+sudo openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout /etc/ssl/private/nest.key \
+  -out /etc/ssl/certs/nest.crt
+
+
+sudo nano /etc/nginx/sites-available/sv-scanner
+
+server {
+    listen 443 ssl;
+    server_name _;
+
+    ssl_certificate /etc/ssl/certs/nest.crt;
+    ssl_certificate_key /etc/ssl/private/nest.key;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# Optional HTTP redirect
+server {
+    listen 80;
+    server_name _;
+    return 301 https://$host$request_uri;
+}
+
+sudo ln -s /etc/nginx/sites-available/sv-scanner /etc/nginx/sites-enabled/
+
+sudo nginx -t
+sudo systemctl reload nginx
+sudo ufw allow 'Nginx Full'
+

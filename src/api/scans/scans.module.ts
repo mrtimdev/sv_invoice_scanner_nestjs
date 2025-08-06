@@ -10,6 +10,7 @@ import { AdminService } from 'src/admin/admin.service';
 import { Setting } from 'src/entities/setting.entity';
 import { BullModule } from '@nestjs/bull';
 import { ScanProcessor } from 'src/config/scan.processor';
+import { DocumentProcessorService } from 'src/admin/scans/document-processor.service';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { ScanProcessor } from 'src/config/scan.processor';
     }),
   ],
   controllers: [ScansController],
-  providers: [ScansService, TextParserService, AdminService, ScanProcessor],
+  providers: [ScansService, TextParserService, AdminService, ScanProcessor, DocumentProcessorService],
   // exports: [ScansService],
 })
 export class ScansModule {}

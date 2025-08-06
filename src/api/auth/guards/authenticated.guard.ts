@@ -13,7 +13,6 @@ export class AuthenticatedGuard implements CanActivate {
     const response = context.switchToHttp().getResponse();
     
     const token = request.cookies?.jwt;
-     console.log({token})
     if (token) {
       try {
         const user = await this.authService.validateToken(token);

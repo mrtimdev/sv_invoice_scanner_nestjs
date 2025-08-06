@@ -19,6 +19,14 @@ import { TextParserService } from 'src/api/scans/text-parser.service';
     TypeOrmModule.forFeature([Setting]),
     BullModule.registerQueue({
         name: 'scan',
+        settings: {
+            maxStalledCount: 0,
+            stalledInterval: 30000,
+            lockDuration: 60000,
+            retryProcessDelay: 5000,
+            guardInterval: 5000,
+            drainDelay: 5
+        }
     }),
   ],
   controllers: [AdminController, ScansController, ReportController, UserController],
