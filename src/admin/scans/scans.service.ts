@@ -85,8 +85,11 @@ export class ScansService {
         searchSaleOrder?: string
     ) {
         // Create query builder or ORM query
-        let query = this.scanRepository.createQueryBuilder('scan')
-            .where('scan.user_id = :userId', { userId });
+        let query = this.scanRepository.createQueryBuilder('scan');
+
+        if (userId) {
+            query = query.where('scan.user_id = :userId', { userId });
+        }
 
         if (length !== -1) {
             query = query.skip(start).take(length);
@@ -194,7 +197,7 @@ export class ScansService {
                 const extension = originalFileName.substring(originalFileName.lastIndexOf('.'));
 
                 // Format scan.date
-                const dateObj = new Date(scan.date);
+                const dateObj = new Date(scan.invoiceDate ? scan.invoiceDate : scan.date);
                 const datePrefix = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
 
 

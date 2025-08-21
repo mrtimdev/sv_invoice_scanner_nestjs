@@ -15,11 +15,13 @@ import { DocumentProcessorService } from 'src/admin/scans/document-processor.ser
 import { TextParserService } from 'src/api/scans/text-parser.service';
 import { User } from 'src/entities/user.entity';
 import { unlink } from 'fs/promises';
+import { AdminService } from 'src/admin/admin.service';
 
 @Processor('scan')
 export class ScanProcessor {
   constructor(private readonly scanService: ScansService,
     private  readonly configService: ConfigService,
+    private readonly adminService: AdminService,
     // private readonly documentProcessor: DocumentProcessorService,
     // private readonly textParserService: TextParserService,
   ) {}
@@ -67,7 +69,10 @@ export class ScanProcessor {
 
         if (!user) throw new Error('User not found');
 
+        // const text = await this.scanService.OcrApi(imagePath);
+        
         const { text } = await this.scanService.OCRText(imagePath);
+        console.log({text});
         if (!text) {
             const filePath = join(process.cwd(), imagePath);
             const filename = path.basename(imagePath);
@@ -100,55 +105,61 @@ export class ScanProcessor {
             return {
                 success: false,
                 message: `OCR failed. File moved to error-scans: ${filename}`,
+                scan: null,
             };
-        }
+        } else {
+            job.progress(30);
 
-            
+            const createScanDto = {
+                imagePath,
+                originalName,
+                scannedText: text,
+                scanType,
+            };
 
-        job.progress(30);
+            const scan = await this.scanService.create(createScanDto, user);
 
-        const createScanDto = {
-            imagePath,
-            originalName,
-            scannedText: text,
-            scanType,
-        };
-
-        const scan = await this.scanService.create(createScanDto, user);
-
-        job.progress(60);
-
-        if (scanType === ScanType.KHB) {
-            const invoiceData: { [key: string]: string | string[] | null | Record<string, string[]> } = this.scanService.extractTextWithTextParser(text);
-            if (invoiceData) {
-                const toStringOrNull = (val: any): string | null => {
-                    if (typeof val === 'string') return val;
-                    if (Array.isArray(val)) return val.join(', ');
-                    if (val && typeof val === 'object') return JSON.stringify(val);
-                        return null;
-                };
-
-                const updatedFields = {
-                    route: toStringOrNull(invoiceData.route),
-                    saleOrder: toStringOrNull(invoiceData.saleOrder),
-                    warehouse: toStringOrNull(invoiceData.warehouse),
-                    vendorCode: toStringOrNull(invoiceData.vendorCode),
-                    vehicleNo: toStringOrNull(invoiceData.vehicleNo),
-                    effectiveDate: this.parseDate(typeof invoiceData.effectiveDate === 'string'
-                                        ? invoiceData.effectiveDate
-                                        : ''),
-                    invoiceDate: this.parseDate(typeof invoiceData.invoiceDate === 'string'
-                                        ? invoiceData.invoiceDate
-                                        : ''),
-                };
-
-                await this.scanService.update(scan.id, updatedFields);
+            const setting = await this.adminService.getSetting();
+   
+            if (setting && setting.is_scan_with_ai) {
+                console.log("Starting auto cropped and remove the background...!");
+                await this.scanService.removeBackgroundAndAutoCrop(imagePath);
             }
+
+            job.progress(60);
+
+            if (scanType === ScanType.KHB) {
+                const invoiceData: { [key: string]: string | string[] | null | Record<string, string[]> } = this.scanService.extractTextWithTextParser(text);
+                if (invoiceData) {
+                    const toStringOrNull = (val: any): string | null => {
+                        if (typeof val === 'string') return val;
+                        if (Array.isArray(val)) return val.join(', ');
+                        if (val && typeof val === 'object') return JSON.stringify(val);
+                            return null;
+                    };
+
+                    const updatedFields = {
+                        route: toStringOrNull(invoiceData.route),
+                        saleOrder: toStringOrNull(invoiceData.saleOrder),
+                        warehouse: toStringOrNull(invoiceData.warehouse),
+                        vendorCode: toStringOrNull(invoiceData.vendorCode),
+                        vehicleNo: toStringOrNull(invoiceData.vehicleNo),
+                        effectiveDate: this.parseDate(typeof invoiceData.effectiveDate === 'string'
+                                            ? invoiceData.effectiveDate
+                                            : ''),
+                        invoiceDate: this.parseDate(typeof invoiceData.invoiceDate === 'string'
+                                            ? invoiceData.invoiceDate
+                                            : ''),
+                    };
+
+                    await this.scanService.update(scan.id, updatedFields);
+                }
+            }
+
+            job.progress(100);
+
+            return { scan: scan, success: true };
         }
-
-        job.progress(100);
-
-        return { scanId: scan.id };
     }
 
     private parseDate =  (dateStr: string): Date | null => {

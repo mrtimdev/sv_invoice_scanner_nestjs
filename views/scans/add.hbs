@@ -122,11 +122,7 @@
 
 
                 <div class="flex items-center gap-2" >
-                    <button id="cleanQueueBtn" onclick="cleanQueue()"
-                        class="w-full text-left px-4 py-2 flex items-center gap-2 rounded-md text-rose-600 dark:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-                        <i class="fi fi-sr-delete-document"></i>
-                        <span>Clean Queue Upload</span>
-                    </button>
+                    
 
                 </div>
                
@@ -196,8 +192,8 @@
                             </select>
                         </div>
                         
-                        <div class="">
-                            <label for="fileInput" class="file-upload-card">
+                        <div class="file-upload-card border-1 border-white border-dashed">
+                            <label for="fileInput" >
                                 <div class="flex flex-col items-center justify-center pt-5 pb-6">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -206,7 +202,7 @@
                                         <span class="font-semibold">Click to upload</span> or drag and drop
                                     </p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                                        PNG, JPG, or JPEG (MAX. 10MB)
+                                        PNG, JPG, or JPEG (MAX. 5MB)
                                     </p>
                                 </div>
                             </label>
@@ -219,13 +215,20 @@
                                 class="hidden"
                             >
                         </div>
+
+                        <div class="flex items-center justify-between">
+                            <button type="submit" class="submit-btn flex items-center justify-center gap-2 text-lg font-semibold text-gray-800 dark:text-white mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                                Start Scanning <span id="totalFile">0</span>
+                            </button>
+                                <button type="button" id="clearFilesBtn" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 text-sm font-medium">
+                                Clear All
+                            </button>
+                        </div>
                         
-                        <button type="submit" class="submit-btn flex items-center justify-center gap-2 text-lg font-semibold text-gray-800 dark:text-white mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
-                            Start Scanning
-                        </button>
+                        
                     </form>
 
                     <div id="globalProgress" class="mb-4">
@@ -251,13 +254,25 @@
 <script>
     $(document).ready(function() {
         let selectedFiles = [];
-        let activeJobs = {}; // Track all active jobs
+        let activeJobs = {}; 
+
+
+        $('#clearFilesBtn').click(function(e) {
+            e.preventDefault();
+            $('#fileInput').val('');
+            $('#previews').empty();
+            selectedFiles = [];
+            activeJobs = {};
+            $("#totalFile").text(0)
+        });
 
         // File input change handler (unchanged)
-        $('#fileInput').on('change', function() {
+        $('#fileInput').on('change', function(e) {
+            e.preventDefault();
             const files = this.files;
             selectedFiles = Array.from(this.files);
             if (files.length > 0) {
+                $("#totalFile").text(files.length)
                 $('#file-upload-container').find('.file-upload-card').addClass('border-blue-500 dark:border-blue-400');
                 
                 const previewsContainer = $('#previews');
@@ -492,49 +507,6 @@
     });
 
 
-   async function cleanQueue() {
-        if (!confirm('This will cancel all scans AND delete uploaded files in queued task. Continue?')) {
-            return;
-        }
-
-        try {
-            $('#cleanQueueBtn').prop('disabled', true)
-            .html('<i class="fa fa-spinner fa-spin"></i> Cleaning...');
-
-            const response = await $.ajax({
-                url: '/admin/scans/queue/clean-all',
-                method: 'POST',
-                timeout: 60000 // 1 minute timeout
-            });
-
-            if (response.success) {
-                // Reset all UI elements
-                $('.file-preview').remove();
-                $('.progress-fill').css('width', '0%');
-                $('#globalProgressBar').css('width', '0%');
-                $('#globalProgressText').html(
-                    `<span class="text-green-500">
-                    ${response.message}<br>
-                    <small>Deleted ${response.deletedFiles.length} files</small>
-                    </span>`
-                );
-                selectedFiles = [];
-                // Show detailed feedback
-                showAlert(`Cleaned ${response.deletedJobs} jobs and ${response.deletedFiles.length} files`, 'success');
-            }
-        } catch (error) {
-            const errorMsg = error.responseJSON?.message || 'Cleanup failed';
-            showAlert(errorMsg, 'error');
-        } finally {
-            $('#cleanQueueBtn').prop('disabled', false).text('Clean Queue');
-        }
-        }
-
-        // Helper function for showing alerts
-        function showAlert(message, type = 'success') {
-            const alertDiv = $(`<div class="alert alert-${type} fixed top-4 right-4 z-50">${message}</div>`);
-            $('body').append(alertDiv);
-            setTimeout(() => alertDiv.fadeOut(), 5000);
-        }
+   
 </script>
 {{/section}}

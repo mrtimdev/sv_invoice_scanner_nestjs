@@ -2,6 +2,9 @@ cd ~/your_project_directory
 python3 -m venv venv
 source venv/bin/activate
 
+pip install -r requirements.txt
+
+
 
 (venv) timdev@vmi2638730:~/projects/timdev/python/image_bg_remover$ 
 
@@ -27,10 +30,10 @@ sudo ufw allow 8000
 
 
 sudo systemctl daemon-reload
-sudo systemctl enable image_autocrop.service # To auto-start on boot (if needed)
-sudo systemctl start image_autocrop.service  # To start it now
-sudo systemctl status image_autocrop.service
-journalctl -u image_autocrop.service -f
+sudo systemctl enable image_autocrop
+sudo systemctl start image_autocrop
+sudo systemctl status image_autocrop
+journalctl -u image_autocrop -f
 
 
 # Use a Python base image

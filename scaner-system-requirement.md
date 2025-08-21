@@ -72,7 +72,7 @@ sudo systemctl daemon-reload
 sudo systemctl stop sv-scanner
 sudo systemctl enable sv-scanner
 sudo systemctl start sv-scanner
-
+sudo journalctl -u sv-scanner.service -f
 D!$$&3949acq
 
 Check status:
@@ -165,18 +165,26 @@ Add this line to run every day at 3 AM:
 
 Uploads
 scp -P 22236 dist.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner
+scp -P 22236 sv_invoice_scanner.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner
 scp -P 22236 sv_scanner_db_2025_07_31_backup.sql deverloper@192.168.1.249:/home/deverloper/
+
+my
+scp -P 22 sv_invoice_scanner.zip timdev@38.242.149.46:/home/timdev/projects/timdev/sv_invoice_scanner_nestjs/source
 
 scp -P 22236 dist.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner/uploads/scans
 
 D:\uploads>scp -r -P 22236 scans/* deverloper@192.168.1.249:/home/deverloper/sv_scanner/uploads/scans
 
+npm install -g npm@11.5.2
 
 Import sql
 mysql -u root -p sv_scanner_db < ./sv_scanner_db_2025_07_31_backup.sql
 
 
 scp -P 22236 .env deverloper@192.168.1.249:/home/deverloper/sv_scanner/
+scp -P 22236 sv_invoice_scanner.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner/
+
+find . -mindepth 1 -not -name 'uploads' -not -name 'uploads_backup_08_08_2025.zip' -not -name '.env' -exec rm -rf {} +
 
 
 mkdir -p uploads backup
@@ -247,6 +255,10 @@ Fetch last commit
 
 git pull origin master
 git pull origin main
+
+This keeps the commit history of both local and remote
+git config pull.rebase false
+git pull origin master
 
  
 git fetch origin

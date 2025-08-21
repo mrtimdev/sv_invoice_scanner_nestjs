@@ -41,7 +41,8 @@ export class TextParserService {
 
         results.effectiveDate = this.extractEffectiveDate(text);
         results.no = this.extractLinesBelowNo(text);
-        results.invoiceDate = this.extractPdDate(text);
+        // results.invoiceDate = this.extractPdDate(text);
+        results.invoiceDate = this.extractDateAboveKhanDangkor(text);
 
         return results;
     }
@@ -148,10 +149,82 @@ export class TextParserService {
 
         results.effectiveDate = this.extractEffectiveDate(text);
         results.no = this.extractLinesBelowNo(text);
-        results.invoiceDate = this.extractPdDate(text);
+        // results.invoiceDate = this.extractPdDate(text);
+        let invoiceDate_ = this.extractDateAboveKhanDangkor(text);
+        if(invoiceDate_ != null) {
+            results.invoiceDate = invoiceDate_;
+        } else {
+            invoiceDate_ = this.extractPD(text);
+        }
+        results.invoiceDate = invoiceDate_;
 
         return results;
     }
+
+
+    private extractDateAboveKhanDangkor(text: string): string | null {
+        let results: string[] = [];
+        const lines = text.split(/\r?\n/).map(line => line.trim());
+
+        const dateRegex = /\b\d{2}[.,/-]\d{2}[.,/-]\d{2,4}\b/;
+        const khanPattern = /^khan\s+dangko[r]?\b/i;
+
+            for (let i = 0; i < lines.length; i++) {
+                if (khanPattern.test(lines[i])) {
+                // Look 1-2 lines above the current line
+                for (let j = i - 1; j >= i - 2 && j >= 0; j--) {
+                    const match = lines[j].match(dateRegex);
+                    if (match) {
+                    let date = match[0];
+
+                    // Normalize separator to dot
+                    date = date.replace(/[,-/]/g, '.');
+
+                    // Fix 3-digit year → 2025
+                    date = date.replace(/(\d{2}\.\d{2}\.)(\d{3})\b/, (_, prefix, year) => prefix + '2' + year);
+
+                    results.push(date);
+                    break; // Stop after finding one date above
+                    }
+                }
+                }
+            }
+
+        return results[0] || null;
+    }
+
+
+    private extractPD(text: string): string | null {
+        // Normalize PD-like patterns (e.g., extra spaces, misplaced colons, wrong separators)
+        const regex = /PD\s*:?[\s]*([0-9]{1,2})[./,-]?([0-9]{1,2})[./,-]?([0-9]{2,4})/gi;
+
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(text)) !== null) {
+            let day = match[1].padStart(2, '0');
+            let month = match[2].padStart(2, '0');
+            let year = match[3];
+
+            // Handle 2-digit year
+            if (year.length === 2) {
+                const currentYear = new Date().getFullYear() % 100;
+                const century = parseInt(year) < currentYear ? '20' : '19';
+                year = century + year;
+            } else if (year.length === 3) {
+                year = '2' + year; // assume leading 2 (e.g., "025" -> "2025")
+            }
+
+            // Validate and return only the first valid date found
+            const isoDate = `${year}-${month}-${day}`;
+            const parsed = new Date(isoDate);
+            if (!isNaN(parsed.getTime())) {
+                return `${day}.${month}.${year}`;
+            }
+        }
+
+        return null;
+    }
+
+
 
 
 

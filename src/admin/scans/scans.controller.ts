@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException, UploadedFiles  } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException, UploadedFiles, ForbiddenException  } from '@nestjs/common';
 import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
 import { User } from 'src/entities/user.entity';
@@ -33,6 +33,10 @@ import { AdminService } from '../admin.service';
 import { Scan } from 'src/api/scans/entities/scan.entity';
 import { ScanType } from 'src/enums/scan-type.enum';
 import { TextParserService } from 'src/api/scans/text-parser.service';
+import { RoleEnum } from 'src/enums/role.enum';
+import { Role } from 'src/entities/role.entity';
+import { Roles } from '../user/dto/roles.decorator';
+import { Job } from 'bull';
 // import { ProgressService } from '../progress/progress.service';
 
 @UseGuards(AuthenticatedGuard)
@@ -51,7 +55,18 @@ export class ScansController {
     @Get()
     @UseGuards(JwtAuthGuard)
     @Render('scans/index')
+    // @Roles('super_admin', 'admin')
     async getScansPage(@Req() req: Request & { user: User }) {
+        const user: User = req.user;
+
+        // if (user && user.roles?.some(role => role.name === 'admin' || role.name === 'super_admin')) {
+        //     return {
+        //         currentPath: req.path,
+        //         title: 'My Scans',
+        //     };
+        // }
+
+        // throw new ForbiddenException('Access Denied');
         return {
             currentPath: req.path,
             title: 'My Scans',
@@ -66,7 +81,12 @@ export class ScansController {
         @Query() query: any
     ) {
         try {
-            const userId = req.user.id;
+            const user: User = req.user;
+            let userId = 0;
+            if (user && user.roles?.some(role => role.code === 'admin' || role.code === 'super_admin')) {
+                userId =  req.user.id;
+            }
+            console.log({userId})
             // Parse DataTables parameters
             const draw = parseInt(query.draw);
             const start = parseInt(query.start);
@@ -323,7 +343,7 @@ export class ScansController {
                 const jobId = `scan-${path.parse(file.filename).name}`;
 
                 try {
-                    await this.scanQueue.add(
+                    const process_and_create_scan = await this.scanQueue.add(
                         'process_and_create_scan',
                         {
                             imagePath,
@@ -332,14 +352,11 @@ export class ScansController {
                             user: user,
                         },
                         {
-                            removeOnComplete: true,
-                            removeOnFail: true,
                             jobId: jobId,
-                            attempts: 0,
-                            backoff: { type: 'exponential', delay: 5000 },
-                            timeout: 60_000,
                         }
                     );
+
+                    console.log({process_and_create_scan})
 
                     results.push({ status: 'queued', jobId: jobId, originalName: file.originalname });
                 } catch (error) {
@@ -361,16 +378,36 @@ export class ScansController {
         };
     }
 
-    @Get('queue-status')
+    @Get('queue/status')
     async getQueueStatus() {
+        const isPaused = await this.scanQueue.isPaused();
         const counts = await this.scanQueue.getJobCounts();
-        return {
-            counts: {
-                waiting: counts.waiting || 0,
-                active: counts.active || 0,
-                completed: counts.completed || 0,
-                failed: counts.failed || 0
+
+        const jobs: Job[] = [
+            ...(await this.scanQueue.getWaiting()),
+            ...(await this.scanQueue.getActive()),
+            ...(await this.scanQueue.getDelayed()),
+        ];
+
+        let totalProgress = 0;
+        let jobsWithProgress = 0;
+
+        for (const job of jobs) {
+            const progress = await job.progress(); // Returns 0–100 or a custom value
+            if (typeof progress === 'number') {
+                totalProgress += progress;
+                jobsWithProgress++;
             }
+        }
+
+        const averageProgress = jobsWithProgress > 0 ? totalProgress / jobsWithProgress : 0;
+
+        return {
+            status: isPaused ? 'paused' : 'active',
+            counts,
+            totalJobs: jobs.length,
+            averageProgress: Math.round(averageProgress),
+            timestamp: new Date().toISOString(),
         };
     }
 
@@ -410,55 +447,56 @@ export class ScansController {
         const path = require('path');
         const { promisify } = require('util');
         const unlink = promisify(fs.unlink);
-        
-        // 1. Pause the queue first
+
+        // 1. Pause the queue
         await this.scanQueue.pause(true);
 
-        // 2. Process all job types
+        // 2. Get all jobs across all states
         const jobTypes: JobStatus[] = ['active', 'waiting', 'delayed', 'completed', 'failed'];
         const allJobs = await Promise.all(
             jobTypes.map(type => this.scanQueue.getJobs([type]))
         ).then(jobs => jobs.flat());
 
-        // 3. Delete files and remove jobs
         const deletedFiles = new Set<string>();
         let deletedCount = 0;
 
-        await Promise.all(allJobs.map(async job => {
+        await Promise.all(
+            allJobs.map(async (job) => {
             try {
-            // Delete associated files
-            if (job?.data?.imagePath) {
+                const jobState = await job.getState(); // get current job state
+                const shouldDeleteFiles = jobState !== 'completed';
+                console.log({jobState})
+                if (shouldDeleteFiles && job?.data?.imagePath) {
                 const filePath = path.join(process.cwd(), job.data.imagePath);
-                
-                // Check for cropped version too
                 const croppedPath = path.join(
-                path.dirname(filePath),
-                `cropped-${path.basename(filePath)}`
+                    path.dirname(filePath),
+                    `cropped-${path.basename(filePath)}`
                 );
 
                 try {
-                if (fs.existsSync(filePath)) {
-                    await unlink(filePath);
-                    deletedFiles.add(filePath);
-                }
-                if (fs.existsSync(croppedPath)) {
-                    await unlink(croppedPath);
-                    deletedFiles.add(croppedPath);
-                }
+                    if (fs.existsSync(filePath)) {
+                        await unlink(filePath);
+                        deletedFiles.add(filePath);
+                    }
+                    if (fs.existsSync(croppedPath)) {
+                        await unlink(croppedPath);
+                        deletedFiles.add(croppedPath);
+                    }
                 } catch (fileErr) {
-                this.logger.error(`Failed to delete files for job ${job.id}`, fileErr);
+                    this.logger.error(`Failed to delete files for job ${job.id}`, fileErr);
+                    }
                 }
-            }
 
-            // Remove the job
-            await job.remove();
-            deletedCount++;
+                // Remove the job
+                await job.remove();
+                deletedCount++;
             } catch (jobErr) {
-            this.logger.error(`Failed to remove job ${job.id}`, jobErr);
+                this.logger.error(`Failed to remove job ${job.id}`, jobErr);
             }
-        }));
+            })
+        );
 
-        // 4. Additional cleanup
+        // 4. Extra cleanup and resume queue
         await this.scanQueue.empty();
         await this.scanQueue.clean(0, 'completed');
         await this.scanQueue.clean(0, 'failed');
@@ -468,9 +506,10 @@ export class ScansController {
             success: true,
             deletedJobs: deletedCount,
             deletedFiles: Array.from(deletedFiles),
-            message: `Cleaned ${deletedCount} jobs and ${deletedFiles.size} files`
+            message: `Cleaned ${deletedCount} jobs and ${deletedFiles.size} files (excluding completed files)`,
         };
-        }
+    }
+
 
 
 

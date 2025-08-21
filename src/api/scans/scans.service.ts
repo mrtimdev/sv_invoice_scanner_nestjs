@@ -328,6 +328,41 @@ export class ScansService {
 
     }
 
+    // OCR
+    async OcrApi(image_path: string): Promise<string> {
+        const filename = path.basename(image_path);
+        const originalPath = join(process.cwd(), 'uploads/scans', filename);
+
+        if (!existsSync(originalPath)) {
+            throw new Error(`Input file does not exist: ${originalPath}`);
+        }
+
+        try {
+            console.log({ filename });
+
+            const formData = new FormData();
+            formData.append('file', fs.createReadStream(originalPath));
+
+            const response = await fetch('http://38.242.149.46:8000/timdev/api/v1/image_service/ocr', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+            }
+
+            const json = await response.json();
+            console.log('✅ OCR Text:', json.text);
+            return json.text;
+        } catch (error) {
+            console.error('❌ OCR failed:', error);
+            throw error;
+        }
+    }
+
+
 
     async update(id: number, data: Partial<Scan>): Promise<void> {
         await this.scanRepository.update(id, data);
@@ -339,11 +374,65 @@ export class ScansService {
         const results = {
             effectiveDate: this.extractEffectiveDate(text),
             ...this.textParserService.extractDocumentFields(text),
+            PD: this.extractDateBetweenPhumAndKhan(text)
         };
+        console.log("With PD: ", {results})
         return results;
     }
 
-    OCRText(image_path: string) {
+    private extractPD(text: string): string[] {
+        const results: string[] = [];
+
+        // Match pattern like "PD: 28.07.2025" or "PD : 28.07.2025"
+        const regex = /PD\s*:?[\s]*([0-9]{2}[./-][0-9]{2}[./-][0-9]{4})/gi;
+
+        let match: string[] | null;
+        while ((match = regex.exec(text)) !== null) {
+            results.push(match[1]); // Push the date value found after "PD:"
+        }
+
+        return results;
+    }
+
+    private extractDateBetweenPhumAndKhan(text: string): string[] {
+        const results: string[] = [];
+        const lines = text.split(/\r?\n/);
+
+        const startPattern = /^Phum Chueng Ek/i;
+        const endPattern = /^khan Dangkor/i;
+        const dateRegex = /\b\d{2}[.,/-]\d{2}[.,/-]\d{2,4}\b/;
+
+        let i = 0;
+        while (i < lines.length - 5) {
+            // Look for two consecutive 'Phum Chueng Ek' lines
+            if (startPattern.test(lines[i]) && startPattern.test(lines[i + 1])) {
+            const possibleDateLine = lines[i + 2];
+            const match = possibleDateLine.match(dateRegex);
+            if (match) {
+                let date = match[0];
+
+                // Normalize separator to dot
+                date = date.replace(/[,-/]/g, '.');
+
+                // Fix 3-digit year → 2025
+                date = date.replace(/(\d{2}\.\d{2}\.)(\d{3})\b/, (_, prefix, year) => prefix + '2' + year);
+
+                results.push(date);
+                i += 6; // Skip full block
+                continue;
+            }
+            }
+            i++;
+        }
+
+        return results;
+        }
+
+
+
+
+
+    async OCRText(image_path: string) {
         return this.documentProcessor.OCRText(image_path);
     }
 

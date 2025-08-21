@@ -19,13 +19,32 @@ import { TextParserService } from 'src/api/scans/text-parser.service';
     TypeOrmModule.forFeature([Setting]),
     BullModule.registerQueue({
         name: 'scan',
+        // defaultJobOptions: {
+        //     removeOnComplete: false, // Keep completed jobs
+        //     removeOnFail: false     // Keep failed jobs
+        // },
+        // settings: {
+        //     maxStalledCount: 0,
+        //     stalledInterval: 30000,
+        //     lockDuration: 60000,
+        //     retryProcessDelay: 5000,
+        //     guardInterval: 5000,
+        //     drainDelay: 5
+        // }
+
         settings: {
-            maxStalledCount: 0,
-            stalledInterval: 30000,
-            lockDuration: 60000,
-            retryProcessDelay: 5000,
-            guardInterval: 5000,
-            drainDelay: 5
+          stalledInterval: 0, // 30 seconds (default is 30s)
+          maxStalledCount: 0,     // How many times to retry stalled jobs
+          guardInterval: 5000,    // How often to check for stalled jobs
+        },
+        defaultJobOptions: {
+          attempts: 0,           // Number of retries
+          backoff: {
+            type: 'exponential', // Exponential backoff
+            delay: 1000          // Initial delay in ms
+          },
+          removeOnComplete: false, // Whether to remove on success
+          removeOnFail: false     // Keep failed jobs for analysis
         }
     }),
   ],

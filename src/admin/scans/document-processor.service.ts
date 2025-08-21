@@ -151,16 +151,11 @@ export class DocumentProcessorService {
       await worker.reinitialize('eng');
       await worker.setParameters({
         tessedit_pageseg_mode: PSM.AUTO,
-        tessedit_ocr_engine_mode: OEM.LSTM_ONLY,
-        preserve_interword_spaces: '1',
       });
 
       const { data } = await worker.recognize(originalPath);
       
-      const cleanedText = data.text
-        .replace(/\s+/g, ' ')
-        .replace(/[^\w\s$€£.,-]/g, '')
-        .trim();
+      const cleanedText = data.text;
 
       return {
         text: cleanedText,

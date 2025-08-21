@@ -113,6 +113,15 @@ async function bootstrap() {
         return args.slice(0, -1); 
       },
 
+      some: function(array: any[], predicate: string, options: { fn: (arg0: any) => any; inverse: (arg0: any) => any; }) {
+        if (!Array.isArray(array)) return false;
+
+        const result = array.some(item => {
+          return item && item[predicate];
+        });
+
+        return result ? options.fn(this) : options.inverse(this);
+      },
 
       includes: function(array: string | any[], value: any, options: { fn: (arg0: any) => any; }) {
         if (!array) return false;

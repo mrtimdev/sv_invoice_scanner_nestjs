@@ -53,13 +53,16 @@
                     </li>
                 </ol>
             </nav>
+            
             <div class="flex items-center gap-2" x-data="{ open: false }">
+                {{#hasAnyRole user.roles (array "super_admin" "admin")}}
                 <a href="/admin/scans/add/new" class="text-white bg-gray-800 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none dark:focus:ring-gray-800 transition-colors duration-200 flex items-center">
                     <svg class="w-4 h-4 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
                     </svg>
                     New
                 </a>
+                {{/hasAnyRole}}
                 
 
                 <!-- Dropdown Toggle -->
@@ -70,6 +73,7 @@
                     </button>
 
                     <!-- Dropdown Menu -->
+                    
                     <div x-show="open" x-transition x-cloak
                         class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
                         <ul class="py-1 text-sm text-gray-700 dark:text-gray-200">
@@ -80,6 +84,7 @@
                                     <span>Download as ZIP</span>
                                 </button>
                             </li>
+                            {{#hasAnyRole user.roles (array "super_admin" "admin")}}
                             <li>
                                 <button id="delete-selected"
                                     class="w-full text-left px-4 py-2 flex items-center gap-2 rounded-md text-rose-600 dark:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
@@ -87,10 +92,13 @@
                                     <span>Delete Scans</span>
                                 </button>
                             </li>
+                            {{/hasAnyRole}}
                         </ul>
                     </div>
+                    
                 </div>
             </div>
+            
         </div>
 
         <h5>Filter by Scanned date</h5>

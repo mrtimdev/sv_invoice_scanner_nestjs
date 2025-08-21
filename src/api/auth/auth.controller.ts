@@ -21,8 +21,9 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     async login(@Body() loginDto: LoginDto) {
         if (!loginDto.identifier || !loginDto.password) {
-        throw new UnauthorizedException('Identifier and password are required');
+            throw new UnauthorizedException('Identifier and password are required');
         }
+        console.log({loginDto})
         return this.authService.login(loginDto);
     }
 

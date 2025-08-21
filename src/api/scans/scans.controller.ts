@@ -31,6 +31,11 @@ import { ScanType } from 'src/enums/scan-type.enum';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { Scan } from './entities/scan.entity';
+import * as path from 'path';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import * as fs from 'fs';
+import { CreateScanDto } from './dto/create-scan.dto';
 
 @ApiTags('scans')
 @ApiBearerAuth()
@@ -107,107 +112,117 @@ export class ScansController {
         @Body('scanType') scanType: string,
         @Req() req: Request & { user: User }
     ) {
-        
+        const user: User = req.user;
         const normalizedType = scanType?.toUpperCase() as ScanType;
 
         const isValidScanType = Object.values(ScanType).includes(normalizedType);
         const finalScanType = isValidScanType ? normalizedType : ScanType.GENERAL;
-        const createScanDto = {
-            imagePath: `/uploads/scans/${file.filename}`,
-            scannedText: text,
-            scanType: finalScanType,
-        };
+        const imagePath = `/uploads/scans/${file.filename}`;
+        
+        const jobId = `scan-${path.parse(file.filename).name}`;
 
-        const scan = await this.scanService.create(createScanDto, req.user);
-        if(finalScanType === ScanType.KHB) {
-            const invoiceData = this.textParserService.extractDocumentFields(text);
-            if (invoiceData) {     
-                const {
-                    route,
-                    saleOrder,
-                    warehouse,
-                    vendorCode,
-                    vehicleNo,
-                    effectiveDate,
-                    invoiceDate,
-                } = invoiceData;
-
-                const toStringOrNull = (val: any): string | null => {
-                    if (typeof val === 'string') return val;
-                    if (Array.isArray(val)) return val.join(', ');
-                    if (val && typeof val === 'object') return JSON.stringify(val);
-                    return null;
-                };
-
-                const updatedFields = {
-                    route: toStringOrNull(route),
-                    saleOrder: toStringOrNull(saleOrder),
-                    warehouse: toStringOrNull(warehouse),
-                    vendorCode: toStringOrNull(vendorCode),
-                    vehicleNo: toStringOrNull(vehicleNo),
-                    effectiveDate: this.parseDate(typeof effectiveDate === 'string' ? effectiveDate : ''),
-                    invoiceDate: this.parseDate(typeof invoiceDate === 'string' ? invoiceDate : ''),
-                };
-
-                await this.scanService.update(scan.id, updatedFields);
-
-                const codes = this.textParserService.extractCodesWithContext(text);
-                const extractNoSectionValues = this.textParserService.extractNoSectionValues(text);
-                // console.log({invoiceData, codes, extractNoSectionValues});
+        const process_and_create_scan = await this.scanQueue.add(
+            'process_and_create_scan',
+            {
+                imagePath,
+                originalName: file.originalname,
+                scanType: finalScanType,
+                user: user,
+            },
+            {
+                jobId: jobId,
             }
-        }
-        
-        const logger = new Logger('ScanController');
-        
-        const setting = await this.adminService.getSetting();
-        // console.log({finalScanType});
+        );
+
+        console.log("Scanning from mobile...!")
+
+        // const setting = await this.adminService.getSetting();
+   
         // if (setting && setting.is_scan_with_ai) {
-        //     await this.scanService.removeBackgroundAndAutoCrop(file, scan.imagePath);
-        //     console.log('AI Scan is enabled. Background removal and autocrop applied.');
+        //     await this.scanQueue.resume(true);
+            
+        //     await this.addingToAutoCroppedProcessingQueue(scan);
         // }
-
-        if (setting && setting.is_scan_with_ai) {
-            await this.addToImageProcessingQueue(scan);
-            // await this.scanQueue.add('remove-bg', {
-            //     file: {
-            //         filename: file.filename,
-            //         path: file.path,
-            //         mimetype: file.mimetype,
-            //     },
-            //     imagePath: scan.imagePath,
-            // }, {
-            //     attempts: 3,
-            //     backoff: 5000, // retry after 5s on failure
-            // });
-            // await this.addToImageProcessingQueue(scan);
-            // // Add job to the queue
-            // await this.imageProcessingQueue.add(
-            //     'remove_bg_and_crop', // Job name (can have multiple job types in one queue)
-            //     {
-            //         scanId: scan.id,
-            //         originalImagePath: scan.imagePath,
-            //     },
-            //     {
-            //         jobId: `scan-${scan.id}`,
-            //         removeOnComplete: true,
-            //         removeOnFail: false,
-            //         attempts: 3, // Retry up to 3 times on failure
-            //         backoff: {
-            //             type: 'exponential', // Exponential backoff for retries
-            //             delay: 5000, // 5 seconds initial delay
-            //         },
-            //         timeout: 60000, // Job will fail if it takes longer than 60 seconds
-            //     }
-            // );
-            // console.log('AI Scan processing job added to queue.');
-        }
-
+        // return scan;
         
-        return scan;
+
+        // const scannedText = await this.scanService.OcrApi(imagePath);
+        // if (!scannedText) {
+        //     const filePath = join(process.cwd(), imagePath);
+        //     const filename = path.basename(imagePath);
+        //     const croppedPath = join(process.cwd(), 'uploads', 'scans', `cropped-${filename}`);
+        //     const errorDir = join(process.cwd(), 'uploads', 'error-scans');
+
+        //     if (!existsSync(errorDir)) {
+        //         await fs.promises.mkdir(errorDir, { recursive: true });
+        //     }
+
+        //     const errorFilePath = join(errorDir, filename);
+        //     const errorCroppedPath = join(errorDir, `cropped-${filename}`);
+
+        //     if (existsSync(filePath)) {
+        //         await fs.promises.rename(filePath, errorFilePath);
+        //     }
+
+        //     if (existsSync(croppedPath)) {
+        //         await fs.promises.rename(croppedPath, errorCroppedPath);
+        //     }
+
+        //     console.table(`OCR failed for file ${filename}, moved to error-scans.`)
+
+        //     return {
+        //         success: false,
+        //         message: `OCR failed. File moved to error-scans: ${filename}`,
+        //     };
+        // } else {
+        //     const createScanDto: CreateScanDto = {
+        //         imagePath: imagePath,
+        //         scannedText: scannedText,
+        //         scanType: finalScanType,
+        //         originalName: file.originalname
+        //     };
+        //     const scan = await this.scanService.create(createScanDto, req.user);
+        //     if (scanType === ScanType.KHB) {
+        //         const invoiceData: { [key: string]: string | string[] | null | Record<string, string[]> } = this.scanService.extractTextWithTextParser(text);
+        //         if (invoiceData) {
+        //             const toStringOrNull = (val: any): string | null => {
+        //                 if (typeof val === 'string') return val;
+        //                 if (Array.isArray(val)) return val.join(', ');
+        //                 if (val && typeof val === 'object') return JSON.stringify(val);
+        //                     return null;
+        //             };
+
+        //             const updatedFields = {
+        //                 route: toStringOrNull(invoiceData.route),
+        //                 saleOrder: toStringOrNull(invoiceData.saleOrder),
+        //                 warehouse: toStringOrNull(invoiceData.warehouse),
+        //                 vendorCode: toStringOrNull(invoiceData.vendorCode),
+        //                 vehicleNo: toStringOrNull(invoiceData.vehicleNo),
+        //                 effectiveDate: this.parseDate(typeof invoiceData.effectiveDate === 'string'
+        //                                     ? invoiceData.effectiveDate
+        //                                     : ''),
+        //                 invoiceDate: this.parseDate(typeof invoiceData.invoiceDate === 'string'
+        //                                     ? invoiceData.invoiceDate
+        //                                     : ''),
+        //             };
+
+        //             await this.scanService.update(scan.id, updatedFields);
+        //         }
+        //     }
+            
+        //     const setting = await this.adminService.getSetting();
+   
+        //     if (setting && setting.is_scan_with_ai) {
+        //         await this.scanQueue.resume(true);
+                
+        //         await this.addingToAutoCroppedProcessingQueue(scan);
+        //     }
+        //     return scan;
+        // }
     }
 
 
-    private async addToImageProcessingQueue(scan: Scan) {
+    private async addingToAutoCroppedProcessingQueue(scan: Scan) {
         try {
             await this.scanQueue.add(
                 'remove_bg_and_crop',
@@ -218,7 +233,7 @@ export class ScansController {
                 {
                     jobId: `scan-${scan.id}`,
                     removeOnComplete: true,
-                    attempts: 3,
+                    attempts: 0,
                     backoff: { type: 'exponential', delay: 5000 },
                     timeout: 60_000, // 60 seconds
                 },
