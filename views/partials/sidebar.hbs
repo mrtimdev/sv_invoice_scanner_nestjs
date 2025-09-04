@@ -30,6 +30,24 @@
                 </a>
             </li>
 
+             <li class="mb-2">
+                <a href="/admin/scans/failed/jobs"
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition duration-200
+                   {{#startsWith currentPath '/admin/scans/failed/jobs'}}bg-indigo-600 text-white{{else}}text-white hover:bg-gray-700 hover:text-white dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white{{/startsWith}}">
+                    <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                    <span>Failed Jobs</span>
+                </a>
+            </li>
+
+            <li class="mb-2">
+                <a href="/admin/scans/actived/jobs"
+                   class="flex items-center space-x-3 p-3 rounded-lg font-medium transition duration-200
+                   {{#startsWith currentPath '/admin/scans/actived/jobs'}}bg-indigo-600 text-white{{else}}text-white hover:bg-gray-700 hover:text-white dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white{{/startsWith}}">
+                    <i class="fa-solid fa-exclamation text-white text-xl"></i>
+                    <span>Active Failed Jobs</span>
+                </a>
+            </li>
+
             {{#unless (isUser user.roles)}}
             <li class="mb-2">
                 <a href="/admin/users"

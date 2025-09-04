@@ -70,9 +70,10 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl stop sv-scanner
+sudo systemctl restart sv-scanner
 sudo systemctl enable sv-scanner
 sudo systemctl start sv-scanner
-sudo journalctl -u sv-scanner.service -f
+sudo journalctl -u sv-scanner -f
 D!$$&3949acq
 
 Check status:
@@ -167,6 +168,8 @@ Uploads
 scp -P 22236 dist.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner
 scp -P 22236 sv_invoice_scanner.zip deverloper@192.168.1.249:/home/deverloper/sv_scanner
 scp -P 22236 sv_scanner_db_2025_07_31_backup.sql deverloper@192.168.1.249:/home/deverloper/
+
+scp -P 22236 v4_sv_invoice_scanner.zip deverloper@45.201.196.19:/home/deverloper/sv_scanner
 
 my
 scp -P 22 sv_invoice_scanner.zip timdev@38.242.149.46:/home/timdev/projects/timdev/sv_invoice_scanner_nestjs/source

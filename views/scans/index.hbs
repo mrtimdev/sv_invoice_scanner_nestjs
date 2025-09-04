@@ -17,6 +17,71 @@
         .datepicker {
             min-width: 120px;
         }
+
+        #pdfExportModal {
+    backdrop-filter: blur(5px);
+}
+
+#pdfExportModal .bg-white {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.column-toggle:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+#pdfLoadingOverlay {
+    backdrop-filter: blur(3px);
+}
+
+#pdfProgressBar {
+    transition: width 0.3s ease;
+}
+
+.scan-thumbnail {
+    border-radius: 4px;
+    border: 2px solid #e5e7eb;
+    transition: transform 0.2s ease;
+}
+
+.scan-thumbnail:hover {
+    transform: scale(1.05);
+    border-color: #3b82f6;
+}
+
+/* Selection styles */
+.check-row:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+#check-all:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+/* Button styles */
+#downloadSelectedPdfBtn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+}
+
+#downloadAllPdfBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+/* Row selection highlight */
+tr.selected {
+    background-color: #eff6ff !important;
+}
+
+tr.selected td {
+    border-color: #bfdbfe !important;
+}
         
     </style>
 {{/section}}
@@ -92,6 +157,15 @@
                                     <span>Delete Scans</span>
                                 </button>
                             </li>
+
+                             <li>
+                                 <button id="downloadSelectedPdfBtn" class="w-full text-left px-4 py-2 flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200" disabled>
+                                    <i class="fas fa-file-pdf mr-2"></i>
+                                    Export Selected PDF
+                                </button>
+                            </li>
+
+                           
                             {{/hasAnyRole}}
                         </ul>
                     </div>
@@ -193,6 +267,94 @@
     </div>
 </div>
 
+<!-- PDF Export Modal -->
+<div id="pdfExportModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-file-pdf text-red-600 mr-2"></i>
+                Export Selected Scans to PDF
+            </h3>
+            <button onclick="closePdfExportModal()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Report Title</label>
+            <input type="text" id="pdfReportTitle" placeholder="Selected Scans Report" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   value="Selected Scans Report">
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-3">Content Options</label>
+            <div class="space-y-2">
+                <label class="flex items-center">
+                    <input type="checkbox" checked id="includeImages" class="h-4 w-4 text-blue-600 rounded mr-2">
+                    <span class="text-sm text-gray-700">Include Images</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="includeCroppedImages" class="h-4 w-4 text-blue-600 rounded mr-2">
+                    <span class="text-sm text-gray-700">Include Cropped Images</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="includeFullText" class="h-4 w-4 text-blue-600 rounded mr-2">
+                    <span class="text-sm text-gray-700">Include Full Text</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" checked id="includeTimestamps" class="h-4 w-4 text-blue-600 rounded mr-2">
+                    <span class="text-sm text-gray-700">Include Timestamps</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="mb-6 p-4 bg-blue-50 rounded-md">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
+                <div>
+                    <h4 class="text-sm font-medium text-blue-800">Export Information</h4>
+                    <p class="text-sm text-blue-600 mt-1" id="exportInfo">
+                        No scans selected
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <button onclick="closePdfExportModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                Cancel
+            </button>
+            <button onclick="generateSelectedPdf()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-md transition-all flex items-center">
+                <i class="fas fa-download mr-2"></i>
+                Generate PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Loading Overlay -->
+<div id="pdfLoadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg p-8 text-center max-w-md">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-red-600 mx-auto mb-4"></div>
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">Generating PDF Report</h3>
+        <p class="text-gray-600 mb-4">Please wait while we compile your selected scans...</p>
+        <div class="space-y-2">
+            <div class="flex justify-between text-sm text-gray-500">
+                <span>Selected scans:</span>
+                <span id="totalScansCount">0</span>
+            </div>
+            <div class="flex justify-between text-sm text-gray-500">
+                <span>Processed:</span>
+                <span id="processedScansCount">0</span>
+            </div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2 mt-4">
+            <div id="pdfProgressBar" class="bg-red-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+    </div>
+</div>
+
 
 
 
@@ -204,6 +366,9 @@
 
 <script src="/assets/datatables.net/js/dataTables.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 
 
 <!-- Alpine.js Modal -->
@@ -311,9 +476,11 @@
                         data: 'id',
                         className: 'text-center',
                         render: function(data, type, row, meta) {
+                            const rowData = JSON.stringify(row).replace(/"/g, '&quot;');
                             return `
                                 <input type="checkbox" 
                                     value="${data}"
+                                    data-row="${rowData}"
                                     class="check-row w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
                             `;
                         },
@@ -499,5 +666,575 @@
 
         
     });
+// Global variables
+let selectedScans = [];
+
+// Initialize PDF export functionality
+function initPdfExport() {
+    // Check all functionality
+    $('#check-all').on('click', function() {
+        const isChecked = $(this).prop('checked');
+        $('.check-row').prop('checked', isChecked);
+        updateSelectedScans();
+        updatePdfButton();
+    });
+
+    // Individual checkbox functionality
+    $(document).on('change', '.check-row', function() {
+        updateSelectedScans();
+        updatePdfButton();
+        updateSelectAllCheckbox();
+    });
+
+    // PDF button handler
+    $('#downloadSelectedPdfBtn').click(function() {
+        if (selectedScans.length > 0) {
+            openPdfExportModal();
+        }
+    });
+}
+
+// Update selected scans array
+function updateSelectedScans() {
+    selectedScans = [];
+    $('.check-row:checked').each(function() {
+        try {
+            const rowData = $(this).data('row');
+            // Parse the row data from the data attribute
+            const row = typeof rowData === 'string' ? 
+                JSON.parse(rowData.replace(/&quot;/g, '"')) : rowData;
+            selectedScans.push(row);
+        } catch (error) {
+            console.error('Error parsing row data:', error);
+        }
+    });
+}
+
+// Update PDF button state
+function updatePdfButton() {
+    const selectedBtn = $('#downloadSelectedPdfBtn');
+    if (selectedScans.length > 0) {
+        selectedBtn.prop('disabled', false);
+        selectedBtn.html(`<i class="fas fa-file-pdf mr-2"></i>Export Selected PDF (${selectedScans.length})`);
+    } else {
+        selectedBtn.prop('disabled', true);
+        selectedBtn.html('<i class="fas fa-file-pdf mr-2"></i>Export Selected PDF');
+    }
+}
+
+// Update select all checkbox
+function updateSelectAllCheckbox() {
+    const totalRows = $('.check-row').length;
+    const checkedRows = $('.check-row:checked').length;
+    $('#check-all').prop('checked', totalRows > 0 && checkedRows === totalRows);
+}
+
+// Open PDF export modal
+function openPdfExportModal() {
+    updateExportInfo();
+    $('#pdfExportModal').removeClass('hidden').addClass('flex');
+}
+
+// Close PDF export modal
+function closePdfExportModal() {
+    $('#pdfExportModal').removeClass('flex').addClass('hidden');
+}
+
+// Update export information
+function updateExportInfo() {
+    const totalScans = selectedScans.length;
+    $('#exportInfo').html(`
+        <strong>${totalScans}</strong> scans selected for export<br>
+        ${totalScans > 0 ? 'Ready to generate PDF report' : 'Please select scans to export'}
+    `);
+}
+
+
+
+// Generate PDF for selected scans
+async function generateSelectedPdf() {
+    const title = $('#pdfReportTitle').val() || 'Selected Scans Report';
+    const includeImages = $('#includeImages').is(':checked');
+    const includeCroppedImages = $('#includeCroppedImages').is(':checked');
+    const includeFullText = $('#includeFullText').is(':checked');
+    const includeTimestamps = $('#includeTimestamps').is(':checked');
+    
+    // Show loading overlay
+    $('#pdfLoadingOverlay').removeClass('hidden').addClass('flex');
+    $('#totalScansCount').text(selectedScans.length);
+    $('#processedScansCount').text('0');
+    $('#pdfProgressBar').css('width', '0%');
+    
+    try {
+        if (typeof window.jspdf === 'undefined') {
+            throw new Error('PDF library not loaded. Please refresh the page.');
+        }
+        
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF();
+
+        
+        // Add cover page
+        addCoverPage(pdf, title, selectedScans.length);
+        
+        pdf.addPage();
+        // Add summary page
+        addSummaryPage(pdf, selectedScans);
+        pdf.addPage();
+        // Add scans pages
+        const finalPageNumber = await addScansPages(pdf, selectedScans, {
+            includeImages,
+            includeCroppedImages,
+            includeFullText,
+            includeTimestamps
+        });
+
+        updateTableOfContents(pdf, finalPageNumber);
+        
+        // Save PDF
+        const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().getTime()}.pdf`;
+        pdf.save(filename);
+        
+    } catch (error) {
+        console.error('PDF generation failed:', error);
+        alert('Failed to generate PDF: ' + error.message);
+    } finally {
+        $('#pdfLoadingOverlay').removeClass('flex').addClass('hidden');
+        closePdfExportModal();
+    }
+}
+
+
+
+
+function updateTableOfContents(pdf, totalPages) {
+    // Go to page 2 (summary page) to update TOC
+    pdf.setPage(2);
+    
+    // Update TOC header with total pages
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Total Pages: ${totalPages}`, 160, 15, { align: 'right' });
+    
+    let yPos = 195;
+    
+    // Add scan entries to TOC with correct page numbers
+    selectedScans.forEach((scan, index) => {
+        const pageNumber = index + 3; // Scans start on page 3
+        
+        if (yPos > 270 && index < selectedScans.length - 1) {
+            // If TOC overflows, add continuation note
+            pdf.setFontSize(9);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text('(Table of Contents continues...)', 25, yPos);
+            return; // Stop processing this scan for TOC
+        }
+        
+        pdf.setFontSize(10);
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(`Scan #${index + 1}`, 25, yPos);
+        
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Page ${pageNumber}`, 180, yPos, { align: 'right' });
+        
+        // Dotted line
+        pdf.setDrawColor(200, 200, 200);
+        pdf.setLineWidth(0.1);
+        // pdf.dashedLine(25, yPos + 2, 175, yPos + 2, 1, 1);
+        
+        yPos += 8;
+    });
+    
+    // Add note if TOC was truncated
+    if (selectedScans.length > 10) {
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`* Showing first 10 of ${selectedScans.length} scans`, 25, 275);
+    }
+}
+
+// Add cover page
+function addCoverPage(pdf, title, totalScans) {
+    // Set background color (optional gradient effect)
+    pdf.setFillColor(239, 68, 68); // Red background
+    pdf.rect(0, 0, 210, 297, 'F');
+    
+    // Add decorative elements
+    pdf.setFillColor(255, 255, 255, 0.1);
+    pdf.circle(160, 80, 40, 'F');
+    pdf.circle(50, 200, 60, 'F');
+    pdf.circle(180, 250, 30, 'F');
+    
+    // Main title
+    pdf.setFontSize(36);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(title, 105, 100, { align: 'center' });
+    
+    // Subtitle
+    pdf.setFontSize(18);
+    pdf.text('SCAN MANAGEMENT SYSTEM', 105, 120, { align: 'center' });
+    
+    // Decorative separator
+    pdf.setDrawColor(255, 255, 255);
+    pdf.setLineWidth(0.5);
+    pdf.line(60, 135, 150, 135);
+    
+    // Scan count
+    pdf.setFontSize(16);
+    pdf.text(`${totalScans} Selected Scans`, 105, 155, { align: 'center' });
+    
+    // Generation date
+    pdf.setFontSize(12);
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 170, { align: 'center' });
+    
+    // Company/System info
+    pdf.setFontSize(10);
+    pdf.setTextColor(255, 255, 255, 0.8);
+    pdf.text('Confidential Document', 105, 250, { align: 'center' });
+    
+    // Footer
+    pdf.setFontSize(8);
+    pdf.setTextColor(255, 255, 255, 0.6);
+    pdf.text('© SV Invoice Scanner. All rights reserved 2025.', 105, 280, { align: 'center' });
+    
+    // Page number (cover)
+    pdf.text('Page 1 - Cover', 105, 290, { align: 'center' });
+}
+
+// Add summary page
+function addSummaryPage(pdf, scans) {
+    // Set current page to 2
+    pdf.setPage(2);
+    
+    // Header with page number
+    pdf.setFontSize(16);
+    pdf.setTextColor(59, 130, 246);
+    pdf.text('REPORT SUMMARY', 20, 20);
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text('Page 2 - Summary', 190, 20, { align: 'right' });
+    
+    // Summary content
+    let yPos = 40;
+    
+    const stats = {
+        total: scans.length,
+        withImages: scans.filter(s => s.imagePath).length,
+        withCropped: scans.filter(s => s.croppedPath).length,
+        withDates: scans.filter(s => s.invoiceDate).length,
+        withText: scans.filter(s => s.scannedText && s.scannedText.length > 0).length
+    };
+    
+    // Summary table
+    pdf.setFontSize(12);
+    pdf.setTextColor(40, 40, 40);
+    pdf.text('Export Overview', 20, yPos);
+    yPos += 15;
+    
+    const summaryData = [
+        ['Total Selected Scans', stats.total, '#2563eb'],
+        ['With Original Images', stats.withImages, '#10b981'],
+        ['With Cropped Images', stats.withCropped, '#8b5cf6'],
+        ['With Invoice Dates', stats.withDates, '#f59e0b'],
+        ['With Text Content', stats.withText, '#ec4899']
+    ];
+    
+    summaryData.forEach(([label, value, color], index) => {
+        // Color dot
+        pdf.setFillColor(...hexToRgb(color));
+        pdf.circle(25, yPos + 2, 2, 'F');
+        
+        pdf.setFontSize(10);
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(`${label}:`, 35, yPos + 3);
+        
+        pdf.setFontSize(11);
+        pdf.setTextColor(40, 40, 40);
+        pdf.text(String(value), 120, yPos + 3);
+        
+        yPos += 8;
+    });
+    
+    yPos += 15;
+    
+    // Date range
+    pdf.setFontSize(12);
+    pdf.setTextColor(40, 40, 40);
+    pdf.text('Date Range', 20, yPos);
+    yPos += 8;
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text(getDateRange(scans), 20, yPos);
+    yPos += 15;
+    
+    // Report metadata
+    pdf.setFontSize(12);
+    pdf.setTextColor(40, 40, 40);
+    pdf.text('Report Information', 20, yPos);
+    yPos += 8;
+    
+    const metaData = [
+        ['Generated', new Date().toLocaleString()],
+        ['Format', 'PDF'],
+        ['Pages', `Estimated: ${Math.ceil(scans.length / 2) + 2}`],
+        ['Status', 'Completed']
+    ];
+    
+    metaData.forEach(([label, value]) => {
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`${label}:`, 20, yPos);
+        pdf.setTextColor(40, 40, 40);
+        pdf.text(value, 70, yPos);
+        yPos += 6;
+    });
+    
+    // Add decorative border
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(0.3);
+    pdf.rect(15, 30, 180, yPos - 20);
+}
+
+// Helper function for hex to RGB conversion
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16)
+    ] : [0, 0, 0];
+}
+
+// Add scans pages
+async function addScansPages(pdf, scans, options) {
+    // Start from page 3 (after cover and summary)
+    let currentPageNumber = 3;
+    
+    for (let i = 0; i < scans.length; i++) {
+        const scan = scans[i];
+        const progress = ((i + 1) / scans.length) * 100;
+        
+        $('#processedScansCount').text(i + 1);
+        $('#pdfProgressBar').css('width', `${progress}%`);
+        
+        // Add new page for each scan except the first one
+        if (i > 0) {
+            pdf.addPage();
+            currentPageNumber++;
+        }
+        
+        // Add scan content
+        const finalYPos = await addScanPage(pdf, scan, options, i + 1, currentPageNumber);
+        
+        // Check if we need another page for this scan (if content overflowed)
+        if (finalYPos > 270 && i < scans.length - 1) {
+            pdf.addPage();
+            currentPageNumber++;
+        }
+        
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    return currentPageNumber; // Return the final page number
+}
+
+// Add individual scan page
+async function addScanPage(pdf, scan, options, scanNumber) {
+    const margin = 20;
+    let yPos = margin;
+    
+    // Scan header
+    pdf.setFontSize(16);
+    pdf.setTextColor(59, 130, 246);
+    pdf.text(`Scan #${scanNumber}`, margin, yPos);
+    yPos += 10;
+    
+    // Scan details
+    pdf.setFontSize(10);
+    pdf.setTextColor(80, 80, 80);
+    
+    const details = [
+        ['ID', `${scan.id}`],
+        ['Scan Date', scan.date ? new Date(scan.date).toLocaleDateString() : 'N/A'],
+        ['Invoice Date', scan.invoiceDate ? new Date(scan.invoiceDate).toLocaleDateString() : 'N/A']
+    ];
+
+    console.log({details})
+    
+    details.forEach(([label, value]) => {
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`${label}:`, margin, yPos);
+        pdf.setTextColor(40, 40, 40);
+        pdf.text(value, margin + 30, yPos);
+        yPos += 6;
+    });
+    
+    yPos += 10;
+    
+    // Add images if requested
+    if (options.includeImages) {
+        if (scan.imagePath) {
+            try {
+                await addImageToPdf(pdf, scan.imagePath, 'Original Image', margin, yPos);
+                yPos += 65;
+            } catch (error) {
+                pdf.setTextColor(150, 150, 150);
+                pdf.text('Original image not available', margin, yPos);
+                yPos += 10;
+            }
+        }
+    }
+
+    if (options.includeCroppedImages) {
+        
+        if (scan.croppedPath) {
+            try {
+                await addImageToPdf(pdf, scan.croppedPath, 'Cropped Image', margin, yPos);
+                yPos += 65;
+            } catch (error) {
+                pdf.setTextColor(150, 150, 150);
+                pdf.text('Cropped image not available', margin, yPos);
+                yPos += 10;
+            }
+        }
+    }
+    
+    // Add scanned text
+    if (options.includeFullText && scan.scannedText) {
+        pdf.setFontSize(12);
+        pdf.setTextColor(40, 40, 40);
+        pdf.text('Scanned Text:', margin, yPos);
+        yPos += 8;
+        
+        pdf.setFontSize(10);
+        pdf.setTextColor(80, 80, 80);
+        
+        const textLines = pdf.splitTextToSize(scan.scannedText, 170);
+        pdf.text(textLines, margin, yPos);
+        yPos += textLines.length * 5 + 10;
+    }
+    
+    // Add footer
+    if (options.includeTimestamps) {
+        pdf.setFontSize(8);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, 280);
+    }
+    
+    pdf.text(`Page ${pdf.internal.getNumberOfPages()}`, 190, 280, { align: 'right' });
+}
+
+// Add image to PDF
+async function addImageToPdf(pdf, imageUrl, title, x, y) {
+    try {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = imageUrl;
+        
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => reject(new Error('Failed to load image'));
+            setTimeout(() => reject(new Error('Image loading timeout')), 10000);
+        });
+        
+        // Add title
+        pdf.setFontSize(10);
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(title, x, y);
+        y += 5;
+        
+        // PDF page dimensions (A4: 210mm x 297mm in points)
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const margin = 20;
+        const contentWidth = pageWidth - (margin * 2);
+        
+        // Calculate dimensions to fit full width while maintaining aspect ratio
+        let imgWidth = contentWidth;
+        let imgHeight = (img.height * contentWidth) / img.width;
+        
+        // If image is too tall for the page, scale it down
+        const maxImageHeight = pageHeight - y - 40; // Leave space for footer and next content
+        if (imgHeight > maxImageHeight) {
+            imgHeight = maxImageHeight;
+            imgWidth = (img.width * maxImageHeight) / img.height;
+        }
+        
+        // Center the image horizontally
+        const xPos = margin + (contentWidth - imgWidth) / 2;
+        
+        // Check if we need to add a new page for this image
+        if (y + imgHeight > pageHeight - 30) {
+            pdf.addPage();
+            y = margin;
+            xPos = margin + (contentWidth - imgWidth) / 2;
+        }
+        
+        // Add image to PDF with FAST compression for better performance
+        pdf.addImage(
+            img, 
+            'JPEG', 
+            xPos, 
+            y, 
+            imgWidth, 
+            imgHeight,
+            undefined,
+            'FAST'
+        );
+        
+        // Return the new y position after the image
+        return y + imgHeight + 15;
+        
+    } catch (error) {
+        console.warn('Failed to add image to PDF:', error);
+        
+        // Add error message instead of image
+        pdf.setFontSize(10);
+        pdf.setTextColor(200, 0, 0);
+        pdf.text(`${title} - Failed to load: ${error.message}`, x, y);
+        
+        // Return position for next content
+        return y + 10;
+    }
+}
+
+// Get date range from scans
+function getDateRange(scans) {
+    const dates = scans.map(s => new Date(s.date)).filter(d => !isNaN(d));
+    if (dates.length === 0) return 'No dates available';
+    
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+    
+    return `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`;
+}
+
+// Close modal on background click
+$('#pdfExportModal').click(function(e) {
+    if (e.target === this) {
+        closePdfExportModal();
+    }
+});
+
+// Close modal on ESC key
+$(document).keydown(function(e) {
+    if (e.key === 'Escape') {
+        closePdfExportModal();
+    }
+});
+
+// Initialize when document is ready
+$(document).ready(function() {
+    initPdfExport();
+    
+    // Handle DataTables redraws
+    $('#scansTable').on('draw.dt', function() {
+        updateSelectedScans();
+        updatePdfButton();
+        updateSelectAllCheckbox();
+    });
+});
     </script>
 {{/section}}

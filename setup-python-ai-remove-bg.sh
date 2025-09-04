@@ -30,6 +30,7 @@ sudo ufw allow 8000
 
 
 sudo systemctl daemon-reload
+sudo systemctl stop image_autocrop
 sudo systemctl enable image_autocrop
 sudo systemctl start image_autocrop
 sudo systemctl status image_autocrop

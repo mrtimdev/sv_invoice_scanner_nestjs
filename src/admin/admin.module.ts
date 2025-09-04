@@ -13,24 +13,13 @@ import { Setting } from 'src/entities/setting.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bull';
 import { TextParserService } from 'src/api/scans/text-parser.service';
+import { JobsModule } from 'src/job/jobs.module';
 
 @Module({
-  imports: [AuthModule, ScansModule, ReportModule, UserModule,
+  imports: [AuthModule, ScansModule, ReportModule, UserModule,JobsModule,
     TypeOrmModule.forFeature([Setting]),
     BullModule.registerQueue({
         name: 'scan',
-        // defaultJobOptions: {
-        //     removeOnComplete: false, // Keep completed jobs
-        //     removeOnFail: false     // Keep failed jobs
-        // },
-        // settings: {
-        //     maxStalledCount: 0,
-        //     stalledInterval: 30000,
-        //     lockDuration: 60000,
-        //     retryProcessDelay: 5000,
-        //     guardInterval: 5000,
-        //     drainDelay: 5
-        // }
 
         settings: {
           stalledInterval: 0, // 30 seconds (default is 30s)
@@ -50,7 +39,7 @@ import { TextParserService } from 'src/api/scans/text-parser.service';
   ],
   controllers: [AdminController, ScansController, ReportController, UserController],
   providers: [AdminService, TextParserService],
-  exports: [AdminService],
+  exports: [AdminService, ],
 })
 export class AdminModule {
   configure(consumer: MiddlewareConsumer) {

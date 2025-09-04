@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException, UploadedFiles, ForbiddenException  } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpException, HttpStatus, Logger, NotFoundException, Param, Post, Query, Render, Req, Res, Sse, StreamableFile, UploadedFile, UseGuards, UseInterceptors, Headers, InternalServerErrorException, UploadedFiles, ForbiddenException, Delete  } from '@nestjs/common';
 import { AuthenticatedGuard } from 'src/api/auth/guards/authenticated.guard';
 import { Response, Request } from 'express';
 import { User } from 'src/entities/user.entity';
@@ -12,6 +12,8 @@ import { AnyFilesInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/
 import { diskStorage } from 'multer';
 import { createWorker, OEM, PSM, Worker } from 'tesseract.js';
 import * as sharp from 'sharp';
+import * as archiver from 'archiver';
+import * as fs from 'fs';
 import * as path from 'path';
 
 import { exec } from 'child_process';
@@ -19,9 +21,7 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-import fs from 'fs/promises';    // Promises version for async operations
 
-import * as archiver from 'archiver';
 import { promises as fsPromises } from 'fs';
 import { interval, map, Observable } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,6 +37,11 @@ import { RoleEnum } from 'src/enums/role.enum';
 import { Role } from 'src/entities/role.entity';
 import { Roles } from '../user/dto/roles.decorator';
 import { Job } from 'bull';
+import { FailedJobsService } from 'src/failed-jobs/failed-jobs.service';
+import { JobQueueService } from 'src/job/job-queue.service';
+import { JobsService } from 'src/job/jobs.service';
+import { FailedJob } from 'src/entities/failed-job.entity';
+import { ActiveJob } from 'src/entities/active-job.entity';
 // import { ProgressService } from '../progress/progress.service';
 
 @UseGuards(AuthenticatedGuard)
@@ -50,6 +55,10 @@ export class ScansController {
         private readonly documentProcessor: DocumentProcessorService,
         private readonly adminService: AdminService,
         @InjectQueue('scan') private readonly scanQueue: Queue,
+        private readonly failedJobsService: FailedJobsService,
+        private readonly jobQueueService: JobQueueService,
+        private readonly jobsService: JobsService
+        
     ) {}
 
     @Get()
@@ -86,7 +95,6 @@ export class ScansController {
             if (user && user.roles?.some(role => role.code === 'admin' || role.code === 'super_admin')) {
                 userId =  req.user.id;
             }
-            console.log({userId})
             // Parse DataTables parameters
             const draw = parseInt(query.draw);
             const start = parseInt(query.start);
@@ -115,8 +123,6 @@ export class ScansController {
                 ? formatDate(parse(query.invoiceEndDate, 'MMM d, yyyy', new Date()), 'yyyy-MM-dd')
                 : undefined;
 
-
-            console.log('Search value:', searchValue, parsedStartDate, parsedEndDate);
 
             const { scans, total } = await this.scansService.findForDataTable(
                 userId,
@@ -179,7 +185,6 @@ export class ScansController {
         const scan = await this.scansService.findById(id);
         const user = req.user
 
-        console.log({user})
 
         if (!scan) {
         this.logger.warn(`Download attempt for scan ID ${id}: Scan record not found.`);
@@ -356,8 +361,6 @@ export class ScansController {
                         }
                     );
 
-                    console.log({process_and_create_scan})
-
                     results.push({ status: 'queued', jobId: jobId, originalName: file.originalname });
                 } catch (error) {
                     results.push({ 
@@ -436,7 +439,6 @@ export class ScansController {
             timestamp: Date.now()
         };
 
-        console.log(result);
 
         return result;
     }
@@ -462,37 +464,35 @@ export class ScansController {
 
         await Promise.all(
             allJobs.map(async (job) => {
-            try {
-                const jobState = await job.getState(); // get current job state
-                const shouldDeleteFiles = jobState !== 'completed';
-                console.log({jobState})
-                if (shouldDeleteFiles && job?.data?.imagePath) {
-                const filePath = path.join(process.cwd(), job.data.imagePath);
-                const croppedPath = path.join(
-                    path.dirname(filePath),
-                    `cropped-${path.basename(filePath)}`
-                );
-
                 try {
-                    if (fs.existsSync(filePath)) {
-                        await unlink(filePath);
-                        deletedFiles.add(filePath);
-                    }
-                    if (fs.existsSync(croppedPath)) {
-                        await unlink(croppedPath);
-                        deletedFiles.add(croppedPath);
-                    }
-                } catch (fileErr) {
-                    this.logger.error(`Failed to delete files for job ${job.id}`, fileErr);
-                    }
-                }
+                    const jobState = await job.getState(); // get current job state
+                    const shouldDeleteFiles = jobState !== 'completed';
+                    // if (shouldDeleteFiles && job?.data?.imagePath) {
+                    //     const filePath = path.join(process.cwd(), job.data.imagePath);
+                    //     const croppedPath = path.join(
+                    //         path.dirname(filePath),
+                    //         `cropped-${path.basename(filePath)}`
+                    //     );
 
-                // Remove the job
-                await job.remove();
-                deletedCount++;
-            } catch (jobErr) {
-                this.logger.error(`Failed to remove job ${job.id}`, jobErr);
-            }
+                    //     try {
+                    //         if (fs.existsSync(filePath)) {
+                    //             await unlink(filePath);
+                    //             deletedFiles.add(filePath);
+                    //         }
+                    //         if (fs.existsSync(croppedPath)) {
+                    //             await unlink(croppedPath);
+                    //             deletedFiles.add(croppedPath);
+                    //         }
+                    //     } catch (fileErr) {
+                    //         this.logger.error(`Failed to delete files for job ${job.id}`, fileErr);
+                    //     }
+                    // }
+
+                    await job.remove();
+                    deletedCount++;
+                } catch (jobErr) {
+                    this.logger.error(`Failed to remove job ${job.id}`, jobErr);
+                }
             })
         );
 
@@ -600,7 +600,6 @@ export class ScansController {
                     timeout: 60_000, // 60 seconds
                 },
             );
-            console.log(`AI processing job added for scan ID: ${scan.id}`);
         } catch (error) {
             console.error(`Failed to queue AI job for scan ${scan.id}: ${error.message}`);
         }
@@ -627,6 +626,581 @@ export class ScansController {
 
         return null;
     };
+
+
+
+
+
+    @Get('/failed/jobs')
+    @UseGuards(JwtAuthGuard)
+    @Render('scans/failed-jobs')
+    async getFailedJobs(@Req() req: Request) {
+        const failedJobs = await this.failedJobsService.getAllFailedJobs();
+        const uniqueFiles = new Set(failedJobs.map(job => job.fileName));
+        const recent24h = failedJobs.filter(job => 
+        new Date(job.failedAt).getTime() > Date.now() - 24 * 60 * 60 * 1000
+        );
+
+        return {
+        currentPath: req.path,
+        title: 'Failed Jobs',
+        failedJobs: failedJobs.map(job => {
+            const filePath = path.join(process.cwd(), 'uploads', 'scans', job.fileName);
+            const fileExists = fs.existsSync(filePath);
+            const fileStats = fileExists ? fs.statSync(filePath) : null;
+            return {
+                ...job,
+                failedAt: job.failedAt.toLocaleString(),
+                shortErrorMessage: job.errorMessage.length > 100 
+                ? job.errorMessage.substring(0, 100) + '...' 
+                : job.errorMessage,
+                fileModified: fileStats ? fileStats.mtime : null,
+                downloadUrl: `/admin/scans/failed/${job.jobId}/download`
+            }
+        }),
+            uniqueFilesCount: uniqueFiles.size,
+            recent24hCount: recent24h.length,
+            resolvedCount: 0 
+        };
+    }
+
+
+    @Get('/actived/jobs')
+    @UseGuards(JwtAuthGuard)
+    @Render('scans/actived-jobs')
+    async getActivedJobs(@Req() req: Request) {
+        const jobs = await this.jobsService.getAllActivedJobs();
+        const uniqueFiles = new Set(jobs.map(job => job.fileName));
+        const recent24h = jobs.filter(job => 
+        new Date(job.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000
+        );
+
+        return {
+            currentPath: req.path,
+            title: 'Actived Jobs',
+            jobs: jobs.map(job => {
+                const filePath = path.join(process.cwd(), 'uploads', 'scans', job.fileName);
+                const fileExists = fs.existsSync(filePath);
+                const fileStats = fileExists ? fs.statSync(filePath) : null;
+                return {
+                    ...job,
+                    createdAt: job.createdAt.toLocaleString(),
+                    fileModified: fileStats ? fileStats.mtime : null,
+                    downloadUrl: `/admin/scans/actived/${job.jobId}/download`
+                }
+            }),
+            uniqueFilesCount: uniqueFiles.size,
+            recent24hCount: recent24h.length,
+            resolvedCount: 0 
+        };
+    }
+
+
+
+    @Get('/api/actived-jobs/:id')
+    @UseGuards(JwtAuthGuard)
+    async getActivedJobDetails(@Param('id') id: string) {
+        return this.jobsService.findActiveJobById(parseInt(id));
+    }
+
+    @Post('/api/actived-jobs/:jobId/retry')
+    @UseGuards(JwtAuthGuard)
+    async retryActivedJob(@Param('jobId') jobId: string,
+        @Req() req: Request & { user: User }
+    ) {
+
+        const user: User = req.user;
+        const result = await this.jobQueueService.retryActivedFailedJob(jobId, user);
+
+        const queuedJob = await this.jobQueueService.getJob(jobId);
+ 
+        // if(queuedJob && await queuedJob.isActive()) {
+        //     console.log({queuedJob})
+        //     queuedJob.remove();
+        // }
+     
+        if (!result.success) {
+            return { 
+                success: false, 
+                message: result.message,
+                jobId 
+            };
+        }
+
+        return { 
+            success: true, 
+            message: result.message,
+            jobId: result.newJobId || jobId
+        };
+    }
+
+    @Post('/api/actived-jobs/retry-all')
+    @UseGuards(JwtAuthGuard)
+    async retryAllActivedJobs(@Req() req: Request & { user: User }) {
+        const user: User = req.user;
+        const result = await this.jobQueueService.retryAllActivedFailedJobs(user);
+        
+        return {
+            success: true,
+            message: `Retried ${result.successful} of ${result.total} jobs`,
+            ...result
+        };
+    }
+
+    @Delete('/api/actived-jobs/:id')
+    @UseGuards(JwtAuthGuard)
+    async deleteActivedJob(@Param('id') id: string) {
+
+        const activedJob = await this.jobsService.findActiveJobById(parseInt(id));
+         if (!activedJob) {
+            throw new NotFoundException(`ActiveJob with id ${id} not found`);
+        }
+        const queuedJob = await this.jobQueueService.getJob(activedJob.jobId);
+ 
+        // if(queuedJob && await queuedJob.isActive()) {
+        //     console.log(queuedJob.id)
+        //     queuedJob.remove();
+        // }
+        await this.jobsService.deleteJob(activedJob.jobId, 'active');
+        return { message: 'Job deleted successfully' };
+    }
+
+
+
+    @Get('/actived/:id/download')
+    async downloadActivedJobImage(@Param('id') jobId: string, @Res() res: Response) {
+        try {
+            const activedJob = await this.jobsService.findActiveJobByJobId(jobId);
+            
+            if (!activedJob) {
+                throw new NotFoundException('Failed job not found');
+            }
+
+            if (!activedJob.fileName || activedJob.fileName === 'unknown') {
+                throw new NotFoundException('No image file associated with this job');
+            }
+
+            const imagePath = path.join(process.cwd(), 'uploads', 'scans', activedJob.fileName);
+            
+            // Check if file exists
+            if (!fs.existsSync(imagePath)) {
+                throw new NotFoundException('Image file not found on server');
+            }
+
+            // Set headers for file download
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Content-Disposition', `attachment; filename="${activedJob.fileName}"`);
+            
+            // Stream the file
+            const fileStream = fs.createReadStream(imagePath);
+            fileStream.pipe(res);
+
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to download image');
+        }
+    }
+
+    // Download multiple actived jobs as zip
+    @Get('/actived/download/zip/all')
+    async downloadActivedJobsZip(@Res() res: Response) {
+        try {
+            // Get all actived jobs
+            const activedJobs = await this.jobsService.getJobsByStatus('active');
+            
+            if (!activedJobs || activedJobs.length === 0) {
+                throw new NotFoundException('No actived jobs found');
+            }
+
+            // Filter jobs that have valid file names
+            const jobsWithFiles = activedJobs.filter(job => 
+                job.fileName && job.fileName !== 'unknown'
+            );
+
+            if (jobsWithFiles.length === 0) {
+                throw new NotFoundException('No actived jobs with valid image files found');
+            }
+
+            // Set zip file headers
+            const zipFileName = `actived-jobs-${new Date().toISOString().split('T')[0]}.zip`;
+            
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+            
+            // Create archiver
+            const archive = archiver('zip', {
+                zlib: { level: 9 } // Maximum compression
+            });
+
+            // Handle archive errors
+            archive.on('error', (err) => {
+                throw new InternalServerErrorException('Actived to create zip file');
+            });
+
+            // Pipe archive to response
+            archive.pipe(res);
+
+            // Add each image file to the archive
+            let filesAdded = 0;
+            
+            for (const job of jobsWithFiles) {
+                try {
+                    const imagePath = path.join(process.cwd(), 'uploads', 'scans', job.fileName);
+                    
+                    if (fs.existsSync(imagePath)) {
+                        // Add file with job ID in the name for easier identification
+                        const fileNameInZip = `${job.jobId}_${job.fileName}`;
+                        archive.file(imagePath, { name: fileNameInZip });
+                        filesAdded++;
+                    }
+                } catch (fileError) {
+                    console.warn(`Skipping file ${job.fileName} for job ${job.jobId}:`, fileError.message);
+                }
+            }
+
+            if (filesAdded === 0) {
+                throw new NotFoundException('No image files found on server');
+            }
+
+            // Finalize the archive
+            await archive.finalize();
+
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to create zip file');
+        }
+    }
+
+    // Download zip for specific failed jobs by IDs
+    @Get('/actived/download/zip/:ids')
+    async downloadSpecificActivedJobsZip(@Param('ids') ids: string, @Res() res: Response) {
+        try {
+            const jobIds = ids.split(',');
+            const jobs: ActiveJob[] = [];
+
+
+            // Get each failed job by ID
+            for (const jobId of jobIds) {
+                const job = await this.jobsService.findActiveJobByJobId(jobId.trim());
+                if (job && job.fileName && job.fileName !== 'unknown') {
+                    jobs.push(job);
+                }
+            }
+
+            if (jobs.length === 0) {
+                throw new NotFoundException('No valid actived jobs found with the provided IDs');
+            }
+
+            // Set zip file headers
+            const zipFileName = `specific-actived-jobs-${new Date().toISOString().split('T')[0]}.zip`;
+            
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+            
+            // Create archiver
+            const archive = archiver('zip', {
+                zlib: { level: 9 }
+            });
+
+            archive.on('error', (err) => {
+                throw new InternalServerErrorException('Failed to create zip file');
+            });
+
+            archive.pipe(res);
+
+            // Add files to archive
+            let filesAdded = 0;
+            
+            for (const job of jobs) {
+                try {
+                    const imagePath = path.join(process.cwd(), 'uploads', 'scans', job.fileName);
+                    
+                    if (fs.existsSync(imagePath)) {
+                        const fileNameInZip = `${job.jobId}_${job.fileName}`;
+                        archive.file(imagePath, { name: fileNameInZip });
+                        filesAdded++;
+                    }
+                } catch (fileError) {
+                    console.warn(`Skipping file ${job.fileName} for job ${job.jobId}:`, fileError.message);
+                }
+            }
+
+            if (filesAdded === 0) {
+                throw new NotFoundException('No image files found on server for the specified jobs');
+            }
+
+            await archive.finalize();
+
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to create zip file');
+        }
+    }
+
+
+
+
+
+
+    // failed jobs
+
+    @Get('/api/failed-jobs/:id')
+    @UseGuards(JwtAuthGuard)
+    async getFailedJobDetails(@Param('id') id: string) {
+        return this.failedJobsService.getFailedJobById(parseInt(id));
+    }
+
+    @Post('/api/failed-jobs/:jobId/retry')
+    @UseGuards(JwtAuthGuard)
+    async retryJob(@Param('jobId') jobId: string,
+        @Req() req: Request & { user: User }
+    ) {
+
+        const user: User = req.user;
+        const result = await this.failedJobsService.retryFailedJob(jobId, user);
+
+        const queuedJob = await this.jobQueueService.getJob(jobId);
+ 
+        if(queuedJob && await queuedJob.isFailed()) {
+            console.log(queuedJob.id)
+            queuedJob.remove();
+        }
+     
+        if (!result.success) {
+            return { 
+            success: false, 
+            message: result.message,
+            jobId 
+            };
+        }
+
+        return { 
+            success: true, 
+            message: result.message,
+            jobId: result.newJobId || jobId
+        };
+    }
+
+    @Post('/api/failed-jobs/retry-all')
+    @UseGuards(JwtAuthGuard)
+    async retryAllFailedJobs(@Req() req: Request & { user: User }) {
+        const user: User = req.user;
+        const result = await this.failedJobsService.retryAllFailedJobs(user);
+        
+        return {
+            success: true,
+            message: `Retried ${result.successful} of ${result.total} jobs`,
+            ...result
+        };
+    }
+
+    @Delete('/api/failed-jobs/:id')
+    @UseGuards(JwtAuthGuard)
+    async deleteFailedJob(@Param('id') id: string) {
+
+        const failedJob = await this.failedJobsService.getFailedJobById(parseInt(id));
+        const queuedJob = await this.jobQueueService.getJob(failedJob.jobId);
+ 
+        if(queuedJob && await queuedJob.isFailed()) {
+            console.log(queuedJob.id)
+            queuedJob.remove();
+        }
+        await this.failedJobsService.deleteFailedJob(parseInt(id));
+        return { message: 'Job deleted successfully' };
+    }
+
+    @Delete('/api/failed/clear-all/jobs')
+    @UseGuards(JwtAuthGuard)
+    async clearAllFailedJobs() {
+
+        // const {queueRemoved, databaseRemoved, totalRemoved} = await this.jobQueueService.removeAllFailedJobs();
+        await this.failedJobsService.clearAllFailedJobs();
+        return { message: `All failed jobs cleared` };
+    }
+
+
+
+    @Get('/failed/:id/download')
+    async downloadFailedJobImage(@Param('id') id: string, @Res() res: Response) {
+        try {
+            const failedJob = await this.jobsService.getFailedJobByJobId(id);
+            
+            if (!failedJob) {
+                throw new NotFoundException('Failed job not found');
+            }
+
+            if (!failedJob.fileName || failedJob.fileName === 'unknown') {
+                throw new NotFoundException('No image file associated with this job');
+            }
+
+            const imagePath = path.join(process.cwd(), 'uploads', 'scans', failedJob.fileName);
+            
+            // Check if file exists
+            if (!fs.existsSync(imagePath)) {
+                throw new NotFoundException('Image file not found on server');
+            }
+
+            // Set headers for file download
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Content-Disposition', `attachment; filename="${failedJob.fileName}"`);
+            
+            // Stream the file
+            const fileStream = fs.createReadStream(imagePath);
+            fileStream.pipe(res);
+
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to download image');
+        }
+    }
+
+    // Download multiple failed jobs as zip
+    @Get('/failed/download/zip/all')
+    async downloadFailedJobsZip(@Res() res: Response) {
+        try {
+            // Get all failed jobs
+            const failedJobs = await this.jobsService.getJobsByStatus('failed');
+            
+            if (!failedJobs || failedJobs.length === 0) {
+                throw new NotFoundException('No failed jobs found');
+            }
+
+            // Filter jobs that have valid file names
+            const jobsWithFiles = failedJobs.filter(job => 
+                job.fileName && job.fileName !== 'unknown'
+            );
+
+            if (jobsWithFiles.length === 0) {
+                throw new NotFoundException('No failed jobs with valid image files found');
+            }
+
+            // Set zip file headers
+            const zipFileName = `failed-jobs-${new Date().toISOString().split('T')[0]}.zip`;
+            
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+            
+            // Create archiver
+            const archive = archiver('zip', {
+                zlib: { level: 9 } // Maximum compression
+            });
+
+            // Handle archive errors
+            archive.on('error', (err) => {
+                throw new InternalServerErrorException('Failed to create zip file');
+            });
+
+            // Pipe archive to response
+            archive.pipe(res);
+
+            // Add each image file to the archive
+            let filesAdded = 0;
+            
+            for (const job of jobsWithFiles) {
+                try {
+                    const imagePath = path.join(process.cwd(), 'uploads', 'scans', job.fileName);
+                    
+                    if (fs.existsSync(imagePath)) {
+                        // Add file with job ID in the name for easier identification
+                        const fileNameInZip = `${job.jobId}_${job.fileName}`;
+                        archive.file(imagePath, { name: fileNameInZip });
+                        filesAdded++;
+                    }
+                } catch (fileError) {
+                    console.warn(`Skipping file ${job.fileName} for job ${job.jobId}:`, fileError.message);
+                }
+            }
+
+            if (filesAdded === 0) {
+                throw new NotFoundException('No image files found on server');
+            }
+
+            // Finalize the archive
+            await archive.finalize();
+
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to create zip file');
+        }
+    }
+
+    // Download zip for specific failed jobs by IDs
+    @Get('/failed/download/zip/:ids')
+    async downloadSpecificFailedJobsZip(@Param('ids') ids: string, @Res() res: Response) {
+        try {
+            const jobIds = ids.split(',');
+            const jobs: FailedJob[] = [];
+
+
+            // Get each failed job by ID
+            for (const jobId of jobIds) {
+                const job = await this.jobsService.getFailedJobByJobId(jobId.trim());
+                if (job && job.fileName && job.fileName !== 'unknown') {
+                    jobs.push(job);
+                }
+            }
+
+            if (jobs.length === 0) {
+                throw new NotFoundException('No valid failed jobs found with the provided IDs');
+            }
+
+            // Set zip file headers
+            const zipFileName = `specific-failed-jobs-${new Date().toISOString().split('T')[0]}.zip`;
+            
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+            
+            // Create archiver
+            const archive = archiver('zip', {
+                zlib: { level: 9 }
+            });
+
+            archive.on('error', (err) => {
+                throw new InternalServerErrorException('Failed to create zip file');
+            });
+
+            archive.pipe(res);
+
+            // Add files to archive
+            let filesAdded = 0;
+            
+            for (const job of jobs) {
+                try {
+                    const imagePath = path.join(process.cwd(), 'uploads', 'scans', job.fileName);
+                    
+                    if (fs.existsSync(imagePath)) {
+                        const fileNameInZip = `${job.jobId}_${job.fileName}`;
+                        archive.file(imagePath, { name: fileNameInZip });
+                        filesAdded++;
+                    }
+                } catch (fileError) {
+                    console.warn(`Skipping file ${job.fileName} for job ${job.jobId}:`, fileError.message);
+                }
+            }
+
+            if (filesAdded === 0) {
+                throw new NotFoundException('No image files found on server for the specified jobs');
+            }
+
+            await archive.finalize();
+
+        } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new InternalServerErrorException('Failed to create zip file');
+        }
+    }
 
     
 }

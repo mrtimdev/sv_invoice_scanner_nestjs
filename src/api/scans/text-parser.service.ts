@@ -42,7 +42,20 @@ export class TextParserService {
         results.effectiveDate = this.extractEffectiveDate(text);
         results.no = this.extractLinesBelowNo(text);
         // results.invoiceDate = this.extractPdDate(text);
-        results.invoiceDate = this.extractDateAboveKhanDangkor(text);
+        // results.invoiceDate = this.extractDateAboveKhanDangkor(text);
+
+
+
+
+        let invoiceDate_ = this.extractPD(text);
+        if(invoiceDate_ != null) {
+            console.log("Result extractPD: ", {text})
+            results.invoiceDate = invoiceDate_;
+        } else {
+        console.log("Result extractDateAboveKhanDangkor: ", {text})
+            invoiceDate_ = this.extractDateAboveKhanDangkor(text);
+        }
+        results.invoiceDate = invoiceDate_;
 
         return results;
     }
@@ -166,63 +179,121 @@ export class TextParserService {
         let results: string[] = [];
         const lines = text.split(/\r?\n/).map(line => line.trim());
 
-        const dateRegex = /\b\d{2}[.,/-]\d{2}[.,/-]\d{2,4}\b/;
+        const dateRegex = /\b\d{1,2}[.,/-]\d{1,2}[.,/-]\d{2,4}\b/;
         const khanPattern = /^khan\s+dangko[r]?\b/i;
 
-            for (let i = 0; i < lines.length; i++) {
-                if (khanPattern.test(lines[i])) {
+        for (let i = 0; i < lines.length; i++) {
+            if (khanPattern.test(lines[i])) {
                 // Look 1-2 lines above the current line
                 for (let j = i - 1; j >= i - 2 && j >= 0; j--) {
                     const match = lines[j].match(dateRegex);
                     if (match) {
-                    let date = match[0];
+                        let date = match[0];
 
-                    // Normalize separator to dot
-                    date = date.replace(/[,-/]/g, '.');
+                        // Normalize separator to dot
+                        date = date.replace(/[,-/]/g, '.');
 
-                    // Fix 3-digit year → 2025
-                    date = date.replace(/(\d{2}\.\d{2}\.)(\d{3})\b/, (_, prefix, year) => prefix + '2' + year);
+                        // Split into components
+                        const parts = date.split('.');
+                        let day = parts[0].padStart(2, '0');
+                        let month = parts[1].padStart(2, '0');
+                        let year = parts[2];
 
-                    results.push(date);
-                    break; // Stop after finding one date above
+                        // Fix month if invalid (87 → 07)
+                        if (parseInt(month) > 12) {
+                            month = '0' + month.charAt(1); // Take only the last digit
+                        }
+
+                        // Fix 3-digit year → 2025
+                        if (year.length === 3) {
+                            year = '2' + year;
+                        }
+
+                        // If year is more than 1 year ahead of current year, use current year
+                        const currentYear = new Date().getFullYear();
+                        const extractedYear = parseInt(year);
+                        
+                        if (extractedYear > currentYear + 1) {
+                            year = currentYear.toString();
+                        }
+
+                        // Validate the date
+                        const dayNum = parseInt(day);
+                        const monthNum = parseInt(month);
+                        const yearNum = parseInt(year);
+
+                        if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+                            const formattedDate = `${day}.${month}.${year}`;
+                            results.push(formattedDate);
+                            break; // Stop after finding one date above
+                        }
                     }
                 }
-                }
             }
+        }
 
         return results[0] || null;
     }
 
 
     private extractPD(text: string): string | null {
-        // Normalize PD-like patterns (e.g., extra spaces, misplaced colons, wrong separators)
-        const regex = /PD\s*:?[\s]*([0-9]{1,2})[./,-]?([0-9]{1,2})[./,-]?([0-9]{2,4})/gi;
+        // Match PD, PD:, IPD, IPD: with optional spaces and various date formats
+        const regex = /\b(I?PD)\s*:?\s*(\d{1,2})[./,-]?(\d{1,2})(?:[./,-]?(\d{2,4}))?\b/gi;
 
         let match: RegExpExecArray | null;
         while ((match = regex.exec(text)) !== null) {
-            let day = match[1].padStart(2, '0');
-            let month = match[2].padStart(2, '0');
-            let year = match[3];
+            let day = match[2].padStart(2, '0');
+            let month = match[3].padStart(2, '0');
+            let year = match[4] || new Date().getFullYear().toString();
 
-            // Handle 2-digit year
-            if (year.length === 2) {
-                const currentYear = new Date().getFullYear() % 100;
-                const century = parseInt(year) < currentYear ? '20' : '19';
-                year = century + year;
+            // Handle year formatting
+            if (!year) {
+                year = new Date().getFullYear().toString();
+            } else if (year.length === 2) {
+                // More robust 2-digit year handling
+                const currentYear = new Date().getFullYear();
+                const fullYear = parseInt(year);
+                const baseYear = currentYear - (currentYear % 100);
+                year = (baseYear + fullYear).toString();
             } else if (year.length === 3) {
-                year = '2' + year; // assume leading 2 (e.g., "025" -> "2025")
+                // If year starts with 1, change to 20 (e.g., "125" → "2025")
+                if (year.startsWith('1')) {
+                    year = '20' + year.substring(1);
+                } else {
+                    year = '2' + year; // e.g., "025" → "2025"
+                }
+            } else if (year.length === 4) {
+                // If year is more than 1 year ahead of current year, use current year
+                const currentYear = new Date().getFullYear();
+                const extractedYear = parseInt(year);
+                
+                if (extractedYear > currentYear + 1) {
+                    year = currentYear.toString();
+                }
             }
 
-            // Validate and return only the first valid date found
-            const isoDate = `${year}-${month}-${day}`;
-            const parsed = new Date(isoDate);
-            if (!isNaN(parsed.getTime())) {
+            // Validate date components
+            const dayNum = parseInt(day);
+            const monthNum = parseInt(month);
+            const yearNum = parseInt(year);
+            
+            // Basic validation before creating Date object
+            if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) {
+                continue;
+            }
+
+            // More reliable date validation
+            const parsed = new Date(yearNum, monthNum - 1, dayNum);
+            if (parsed.getFullYear() === yearNum && 
+                parsed.getMonth() === monthNum - 1 && 
+                parsed.getDate() === dayNum) {
                 return `${day}.${month}.${year}`;
             }
         }
 
         return null;
     }
+
 
 
 

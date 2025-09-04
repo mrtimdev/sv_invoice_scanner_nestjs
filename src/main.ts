@@ -76,6 +76,32 @@ async function bootstrap() {
       cache: false,
     } : {}),
     helpers: {
+      formatDate: function(dateString: string | number | Date) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+      },
+      formatTime: function(dateString: string | number | Date) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+      },
+      shortErrorMessage: function(errorMessage: string) {
+        if (!errorMessage) return 'No error message';
+        // Truncate long error messages
+        if (errorMessage.length > 50) {
+            return errorMessage.substring(0, 47) + '...';
+        }
+        return errorMessage;
+      },
       section: function(name: string | number, options: { fn: (arg0: any) => any; }) {
         if (!this._sections) this._sections = {};
         this._sections[name] = options.fn(this);
@@ -155,7 +181,8 @@ async function bootstrap() {
       
       isAuthenticated: () => !!this.user,
         hasRole: (role: any) => this.user?.roles?.includes(role),
-      }
+      },
+      
   });
 
 

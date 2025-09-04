@@ -20,9 +20,9 @@ class QueueMonitor {
             <div id="queueMonitor" class="fixed bottom-0 right-4 text-gray-800 dark:text-white bg-white/30 dark:bg-gray-800/80 p-4 rounded-lg shadow-lg z-50 border border-gray-200/50 dark:border-gray-700/50 cursor-move custom-backdrop-blur-md w-64">
                 <div class="flex justify-between items-center mb-2">
                     <h3 class="font-bold select-none">Scan Queue Status</h3>
-                    <button id="refreshQueueBtn" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Refresh">
-                        <i class="fi fi-sr-refresh"></i>
-                    </button>
+                    <a href="/admin/scans/add/new" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="New Scans">
+                        <i class="fi fi-sr-plus"></i>
+                    </a>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3 select-none">
@@ -55,7 +55,6 @@ class QueueMonitor {
             `);
 
         $('#cleanQueueBtn').on('click', () => this.cleanQueue());
-        $('#refreshQueueBtn').on('click', () => this.updateStats());
     }
 
 

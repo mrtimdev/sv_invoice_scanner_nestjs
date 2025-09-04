@@ -116,8 +116,6 @@ export class ScansService {
         if (invoiceEndDate) {
             query = query.andWhere('DATE(scan.invoice_date) <= :invoiceEndDate', { invoiceEndDate });
         }
-
-        console.log({searchValue, orderDir, length, startDate, endDate})
         
         // Add search if provided
         if (searchValue) {
@@ -262,7 +260,6 @@ export class ScansService {
             user
         });
         const savedScan = await this.scanRepository.save(scan);
-        console.log('Print user:', user);
         return savedScan;
     }
 

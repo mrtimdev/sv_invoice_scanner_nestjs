@@ -7,6 +7,7 @@ import { promisify } from 'util';
 import { createWorker, PSM, OEM, Worker } from 'tesseract.js';
 
 
+
 import * as FormData from 'form-data';
 import fetch from 'node-fetch';
 
@@ -16,6 +17,8 @@ import * as fs from 'fs';
 import { openAsBlob, writeFileSync } from 'node:fs';
 import * as path from 'path';
 import { AdminService } from '../admin.service';
+import * as sharp from 'sharp';
+import ImageProcessor from './ImageProcessor';
 
 const execAsync = promisify(exec);
 
@@ -138,32 +141,45 @@ export class DocumentProcessorService {
   }
 
 
-  async OCRText(imagePath: string) {
+  async  OCRText(imagePath: string) {
     const filename = path.basename(imagePath);
     const originalPath = join(process.cwd(), 'uploads/scans', filename);
     if (!existsSync(originalPath)) {
         throw new Error(`Input file does not exist: ${originalPath}`);
     }
-    let worker: Worker | null = null;
-    try {
-      worker = await createWorker();
-    //   await worker.loadLanguage('eng');
-      await worker.reinitialize('eng');
-      await worker.setParameters({
-        tessedit_pageseg_mode: PSM.AUTO,
-      });
+    const worker = await createWorker(['eng', 'khm'], OEM.LSTM_ONLY, {
+      logger: m => console.log(m),
+    });
 
-      const { data } = await worker.recognize(originalPath);
-      
-      const cleanedText = data.text;
+    await worker.setParameters({
+      tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+      user_defined_dpi: '300',
+      preserve_interword_spaces: '1',
+      // tessedit_char_whitelist: '0123456789:/.- PDABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 
-      return {
-        text: cleanedText,
-        confidence: data.confidence,
-      };
-    } finally {
-      if (worker) await worker.terminate();
-    }
+    });
+
+    // Only request valid OutputFormats
+    const { data } = await worker.recognize(
+      originalPath,
+      { rotateAuto: true },
+      { text: true, tsv: true, blocks: true } // ✅ valid keys only
+    );
+
+    await worker.terminate();
+
+    // Clean text
+    const cleanedText = data.text
+      // .replace(/\s{2,}/g, ' ')
+      // .replace(/\n{2,}/g, '\n')
+      .trim();
+
+    // Even though we didn’t ask for them in OutputFormats, we still have lines & words
+    return {
+      text: cleanedText,
+      lines: data.blocks,  // ✅ available here
+      tsv: data.tsv,
+    };
   }
 
 

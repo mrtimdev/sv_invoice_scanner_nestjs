@@ -1,0 +1,1219 @@
+
+{{#section "styles"}}
+    <link href="/assets/datatables.net-dt/css/dataTables.dataTables.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        #scansTable {
+            width: 100% !important;
+            border-collapse: collapse;
+        }
+
+        .stat-filter-btn {
+            @apply px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors duration-200;
+        }
+        .stat-filter-btn.active {
+            @apply bg-primary text-white hover:bg-primary-dark;
+        }
+        .datepicker {
+            min-width: 120px;
+        }
+
+
+    .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        max-width: 350px;
+    }
+
+    .notification {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid;
+        animation: slideIn 0.3s ease-out;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .notification.success {
+        border-left-color: #10B981;
+        background: #ECFDF5;
+    }
+
+    .notification.error {
+        border-left-color: #EF4444;
+        background: #FEF2F2;
+    }
+
+    .notification.info {
+        border-left-color: #3B82F6;
+        background: #EFF6FF;
+    }
+
+    .notification.warning {
+        border-left-color: #F59E0B;
+        background: #FFFBEB;
+    }
+
+    .notification-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .notification.success .notification-icon {
+        color: #10B981;
+    }
+
+    .notification.error .notification-icon {
+        color: #EF4444;
+    }
+
+    .notification.info .notification-icon {
+        color: #3B82F6;
+    }
+
+    .notification.warning .notification-icon {
+        color: #F59E0B;
+    }
+
+    .notification-content {
+        flex: 1;
+    }
+
+    .notification-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #374151;
+    }
+
+    .notification-message {
+        color: #6B7280;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .notification-close {
+        background: none;
+        border: none;
+        color: #9CA3AF;
+        cursor: pointer;
+        padding: 0;
+        margin-left: 8px;
+        font-size: 16px;
+    }
+
+    .notification-close:hover {
+        color: #374151;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+
+
+    .hidden {
+        display: none;
+    }
+
+    .flex {
+        display: flex;
+    }
+
+    #imagePreviewModal {
+        backdrop-filter: blur(5px);
+    }
+
+    .job-checkbox:checked {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+
+    tr:hover .job-checkbox {
+        border-color: #3b82f6;
+    }
+
+    #downloadSelectedBtn:not(:disabled):hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    #downloadAllBtn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Add to your existing styles */
+    #pdfModal {
+        backdrop-filter: blur(5px);
+    }
+
+    #pdfModal .bg-white {
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    #pdfJobList {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e0 #f7fafc;
+    }
+
+    #pdfJobList::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #pdfJobList::-webkit-scrollbar-track {
+        background: #f7fafc;
+        border-radius: 3px;
+    }
+
+    #pdfJobList::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 3px;
+    }
+
+    #pdfJobList::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+
+    #pdfLoading .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    input[type="text"]:focus, input[type="checkbox"]:focus {
+        outline: none;
+        ring: 2px;
+        ring-color: #3b82f6;
+    }
+        
+    </style>
+{{/section}}
+
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8 !pt-[105px] font-sans transition-colors duration-200">
+    <div class="mx-auto py-0 sm:px-6 lg:px-8">
+        <!-- Breadcrumb -->
+        <div id="bc" class="flex justify-between items-center bg-white dark:bg-gray-800 shadow-lg rounded-lg w-full mb-8 p-4 transition-colors duration-200">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+                    <li class="inline-flex items-center">
+                        <a href="#" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white transition-colors duration-200">
+                            <svg class="w-3 h-3 me-2.5 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"/>
+                            </svg>
+                            Home
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="rtl:rotate-180 w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+                            </svg>
+                            <a href="/admim/scanns" class="ms-1 text-sm font-medium text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-white transition-colors duration-200">Scans</a>
+                        </div>
+                    </li>
+                    <li aria-current="page">
+                        <div class="flex items-center">
+                            <svg class="rtl:rotate-180 w-3 h-3 text-gray-400 mx-1" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"/>
+                            </svg>
+                            <span class="ms-1 text-sm font-medium text-gray-500 dark:text-gray-400">List</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            
+
+
+            
+        </div>
+
+        <!-- Main Content -->
+        <section class="mb-2">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6 transition-colors duration-200">Invoice Scanning Overview</h2>
+            
+            <!-- Table Container -->
+            <div class="overflow-x-auto p-5 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+                
+
+
+
+                        <div >
+                            <div>
+                                <!-- Header -->
+                                <div class="flex justify-between items-center mb-8">
+                                    <h1 class="text-3xl font-bold text-gray-800">{{title}}</h1>
+                                    <div class="flex space-x-4">
+                                        <button onclick="clearAllActivedJobs()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-trash mr-2"></i>Clear All
+                                        </button>
+                                        <button onclick="refreshPage()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-sync mr-2"></i>Refresh
+                                        </button>
+                                        <button id="retryAllBtn" onclick="retryAllJobs()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-redo-alt mr-2"></i>Retry All
+                                        </button>
+                                    </div>
+
+                                      <div class="flex space-x-2">
+                                            <button id="downloadSelectedBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                                <i class="fas fa-download mr-2"></i>Download Selected
+                                            </button>
+                                            <button id="downloadAllBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+                                                <i class="fas fa-download mr-2"></i>Download All
+                                            </button>
+
+                                            <button id="downloadPdfBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled>
+                                                <i class="fas fa-file-pdf mr-2"></i>PDF Selected
+                                            </button>
+                                        </div>
+                                </div>
+
+                                <!-- Stats Cards -->
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                    <div class="bg-white rounded-lg shadow p-6">
+                                        <div class="flex items-center">
+                                            <div class="p-3 bg-red-100 rounded-full">
+                                                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <h2 class="text-2xl font-bold text-gray-800">{{jobs.length}}</h2>
+                                                <p class="text-gray-600">Total Active Failed Jobs</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Acitved Jobs Table -->
+                                <div class="bg-white rounded-lg shadow overflow-hidden">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        <input type="checkbox" id="selectAll" class="h-4 w-4 text-blue-600 rounded">
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Thumbnail
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Job ID
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        File Name
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Created At
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Last Retry Attempt
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Retry Count
+                                                    </th>
+                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Actions
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white divide-y divide-gray-200">
+                                                {{#each jobs}}
+                                                <tr class="hover:bg-gray-50 transition-colors" data-job-id="{{jobId}}">
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <input type="checkbox" class="job-checkbox h-4 w-4 text-blue-600 rounded" value="{{jobId}}">
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        {{#if fileName}}
+                                                        <img src="/uploads/scans/{{fileName}}" 
+                                                            alt="Thumbnail" 
+                                                            class="w-16 h-16 object-cover rounded-md border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                                                            onclick="previewImage('{{fileName}}')"
+                                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                        {{else}}
+                                                        <div class="w-16 h-16 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center text-gray-400">
+                                                            <i class="fas fa-times text-xl"></i>
+                                                        </div>
+                                                        {{/if}}
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="text-sm font-medium text-gray-900">{{jobId}}</div>
+                                                        <div class="text-sm text-gray-500">{{jobName}}</div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="text-sm text-gray-900">{{fileName}}</div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <div class="text-sm text-gray-900">{{formatDate createdAt}}</div>
+                                                        <div class="text-xs text-gray-500">{{formatTime createdAt}}</div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        {{#if lastRetryAttempt}}
+                                                            <div class="text-sm text-gray-900">{{formatDate lastRetryAttempt}}</div>
+                                                            <div class="text-xs text-gray-500">{{formatTime lastRetryAttempt}}</div>
+                                                        {{else}}
+
+                                                        {{/if}}
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                        {{#if retryCount}}
+                                                            <div class="text-sm text-gray-900">{{retryCount}}</div>
+                                                        {{else}}
+                                                            0
+                                                        {{/if}}
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                        <div class="flex space-x-2">
+                                                            <button onclick="viewDetails('{{id}}')" class="text-blue-600 hover:text-blue-900 transition-colors" title="View Details">
+                                                                <i class="fas fa-eye"></i>
+                                                            </button>
+                                                            <button onclick="retryJob('{{jobId}}', this)" class="text-green-600 hover:text-green-900 transition-colors" title="Retry Job">
+                                                                <i class="fas fa-redo"></i>
+                                                            </button>
+                                                            <a href="{{ downloadUrl }}" class="text-indigo-600 hover:text-indigo-900 transition-colors" title="Download">
+                                                                <i class="fas fa-download"></i>
+                                                            </a>
+                                                            <button onclick="deleteJob('{{id}}', this)" class="text-red-600 hover:text-red-900 transition-colors" title="Delete">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {{else}}
+                                                <tr>
+                                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                                        <div class="flex flex-col items-center justify-center py-12">
+                                                            <i class="fas fa-check-circle text-green-400 text-4xl mb-4"></i>
+                                                            <h3 class="text-lg font-medium text-gray-900 mb-2">No failed jobs!</h3>
+                                                            <p class="text-gray-500">All jobs are processing successfully.</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {{/each}}
+                                            </tbody>
+                                        </table>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="notification-container" class="notification-container"></div>
+
+
+                        <!-- Modal for job details -->
+                        <div id="detailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+                            <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                                <div class="mt-3">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-xl font-bold text-gray-800">Job Details</h3>
+                                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div id="modalContent" class="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+                                        <!-- Content will be loaded via JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="imagePreviewModal" class="fixed inset-0 bg-black bg-opacity-75 items-center justify-center z-50 hidden">
+                            <div class="bg-white rounded-lg p-4 max-w-4xl max-h-screen">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold">Image Preview</h3>
+                                    <button onclick="closePreview()" class="text-gray-500 hover:text-gray-700">
+                                        <i class="fas fa-times text-xl"></i>
+                                    </button>
+                                </div>
+                                <img id="previewImage" src="" alt="Preview" class="max-w-full max-h-96 object-contain">
+                                <div class="mt-4 text-center">
+                                    <button onclick="downloadPreview()" class="bg-blue-600 text-white px-4 py-2 rounded-md">
+                                        <i class="fas fa-download mr-2"></i>Download
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                        <!-- PDF Generation Modal -->
+                        <div id="pdfModal" class="fixed inset-0 bg-black bg-opacity-75 items-center justify-center z-50 hidden">
+                            <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-2xl font-bold text-gray-800">
+                                        <i class="fas fa-file-pdf text-red-600 mr-2"></i>
+                                        Generate PDF Report
+                                    </h3>
+                                    <button onclick="closePdfModal()" class="text-gray-500 hover:text-gray-700 transition-colors">
+                                        <i class="fas fa-times text-xl"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Report Title</label>
+                                    <input type="text" id="pdfTitle" placeholder="Active Failed Jobs Report" 
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                                
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Include Details</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="includeImages" checked class="h-4 w-4 text-blue-600 rounded mr-2">
+                                            <span class="text-sm text-gray-700">Include Image Thumbnails</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="includeTimestamps" checked class="h-4 w-4 text-blue-600 rounded mr-2">
+                                            <span class="text-sm text-gray-700">Include Timestamps</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-6">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Selected Jobs</label>
+                                    <div id="pdfJobList" class="bg-gray-50 p-4 rounded-md max-h-32 overflow-y-auto">
+                                        <div class="text-center text-gray-500">No jobs selected</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-end space-x-3">
+                                    <button onclick="closePdfModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                                        Cancel
+                                    </button>
+                                    <button onclick="generatePdfReport()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-md transition-all flex items-center">
+                                        <i class="fas fa-download mr-2"></i>
+                                        Generate PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PDF Loading Overlay -->
+                        <div id="pdfLoading" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50 hidden">
+                            <div class="bg-white rounded-lg p-8 text-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">Generating PDF</h3>
+                                <p class="text-gray-600">Please wait while we create your report...</p>
+                                <div class="mt-4 text-sm text-gray-500" id="pdfProgress">Processing 0 of 0</div>
+                            </div>
+                        </div>
+
+
+
+
+
+
+            </div>
+
+            
+        </section>
+    </div>
+</div>
+
+
+
+
+
+
+
+{{#section "scripts"}}
+
+
+<script src="/assets/datatables.net/js/dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+
+    let selectedJobs = [];
+    let currentPreviewImage = '';
+
+    let selectedJobsData = [];
+
+    function updateSelectedJobsData() {
+        selectedJobsData = [];
+        $('.job-checkbox:checked').each(function() {
+            const jobId = $(this).val();
+            const row = $(this).closest('tr');
+            const jobData = {
+                id: jobId,
+                jobId: row.find('td:nth-child(3) .text-sm.font-medium').text(),
+                jobName: row.find('td:nth-child(3) .text-sm.text-gray-500').text(),
+                fileName: row.find('td:nth-child(4) .text-sm').text(),
+                createdAt: row.find('td:nth-child(6) .text-sm').text(),
+                imageUrl: row.find('td:nth-child(2) img').attr('src')
+            };
+            selectedJobsData.push(jobData);
+        });
+        updatePdfButton();
+    }
+
+    function updatePdfButton() {
+        const pdfBtn = $('#downloadPdfBtn');
+        if (selectedJobsData.length > 0) {
+            pdfBtn.prop('disabled', false);
+            pdfBtn.text(`PDF Selected (${selectedJobsData.length})`);
+        } else {
+            pdfBtn.prop('disabled', true);
+            pdfBtn.text('PDF Selected');
+        }
+    }
+
+    // PDF Modal functions
+    function openPdfModal() {
+        if (selectedJobsData.length === 0) return;
+
+        console.log({selectedJobsData})
+        
+        // Update job list in modal
+        const jobList = $('#pdfJobList');
+        jobList.empty();
+        
+        selectedJobsData.forEach(job => {
+            jobList.append(`
+                <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-200 rounded flex items-center justify-center mr-3">
+                            <i class="fas fa-file-image text-gray-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-800">${job.fileName}</div>
+                            <div class="text-xs text-gray-500">${job.jobId}</div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500">${job.createdAt}</div>
+                </div>
+            `);
+        });
+        
+        $('#pdfModal').removeClass('hidden').addClass('flex');
+    }
+
+    function closePdfModal() {
+        $('#pdfModal').removeClass('flex').addClass('hidden');
+    }
+
+    function checkPdfLibraries() {
+        if (typeof window.jspdf === 'undefined' || typeof html2canvas === 'undefined') {
+            // Load libraries dynamically if not already loaded
+            const loadScript = (src) => {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = src;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            };
+            
+            Promise.all([
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+                loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+            ]).then(() => {
+                openPdfModal();
+            }).catch(error => {
+                console.error('Failed to load PDF libraries:', error);
+                alert('Failed to load PDF libraries. Please check your internet connection.');
+            });
+        } else {
+            openPdfModal();
+        }
+    }
+
+    // PDF Generation function
+    async function generatePdfReport() {
+        const title = $('#pdfTitle').val() || 'Actived Jobs Report';
+        const includeImages = $('#includeImages').is(':checked');
+        const includeErrors = $('#includeErrors').is(':checked');
+        const includeTimestamps = $('#includeTimestamps').is(':checked');
+        
+        // Show loading overlay
+        $('#pdfLoading').removeClass('hidden').addClass('flex');
+        $('#pdfProgress').text(`Processing 0 of ${selectedJobsData.length}`);
+        
+        try {
+            if (typeof window.jspdf === 'undefined') {
+                throw new Error('PDF library not loaded. Please refresh the page.');
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+            let currentPage = 1;
+            // Add title page
+            pdf.setFontSize(24);
+            pdf.setTextColor(40, 40, 40);
+            pdf.text(title, 105, 50, { align: 'center' });
+            
+            pdf.setFontSize(12);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Generated on ${new Date().toLocaleDateString()}`, 105, 65, { align: 'center' });
+            pdf.text(`${selectedJobsData.length} actived jobs`, 105, 75, { align: 'center' });
+            
+            // Add summary table
+            let yPosition = 100;
+            pdf.setFontSize(16);
+            pdf.setTextColor(40, 40, 40);
+            pdf.text('Summary', 20, yPosition);
+            yPosition += 10;
+            
+            pdf.setFontSize(10);
+            selectedJobsData.forEach((job, index) => {
+                if (yPosition > 250) {
+                    pdf.addPage();
+                    yPosition = 20;
+                    currentPage++;
+                }
+                
+                pdf.setTextColor(40, 40, 40);
+                pdf.text(`${index + 1}. ${job.fileName}`, 25, yPosition);
+                
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Job ID: ${job.jobId}`, 25, yPosition + 5);
+                pdf.text(`Failed: ${job.createdAt}`, 25, yPosition + 10);
+                
+                yPosition += 20;
+            });
+            
+            // Add detailed pages for each job
+            for (let i = 0; i < selectedJobsData.length; i++) {
+                const job = selectedJobsData[i];
+                $('#pdfProgress').text(`Processing ${i + 1} of ${selectedJobsData.length}`);
+                
+                pdf.addPage();
+                currentPage++;
+                
+                // Job header
+                pdf.setFontSize(18);
+                pdf.setTextColor(40, 40, 40);
+                pdf.text(`Failed Job: ${job.fileName}`, 20, 20);
+                
+                pdf.setFontSize(10);
+                pdf.setTextColor(100, 100, 100);
+                pdf.text(`Job ID: ${job.jobId}`, 20, 30);
+                pdf.text(`Job Type: ${job.jobName}`, 20, 35);
+                pdf.text(`Failed At: ${job.createdAt}`, 20, 40);
+                
+                let yPos = 50;
+                if (includeImages && job.imageUrl) {
+                    
+                    try {
+                        // Create a temporary image element to load the image
+                        const img = new Image();
+                        img.crossOrigin = 'Anonymous';
+                        img.src = job.imageUrl;
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                            setTimeout(reject, 10000); // Timeout after 10 seconds
+                        });
+                        
+                        // PDF page dimensions (A4: 210mm x 297mm, converted to points)
+                        const pageWidth = 210;
+                        const pageHeight = 297;
+                        const margin = 20;
+                        const contentWidth = pageWidth - (margin * 2);
+                        
+                        // Calculate dimensions to fit full width while maintaining aspect ratio
+                        let imgWidth = contentWidth;
+                        let imgHeight = (img.height * contentWidth) / img.width;
+                        
+                        // If image is too tall for the page, scale it down
+                        const maxImageHeight = pageHeight - yPos - 30; // Leave space for footer
+                        if (imgHeight > maxImageHeight) {
+                            imgHeight = maxImageHeight;
+                            imgWidth = (img.width * maxImageHeight) / img.height;
+                        }
+                        
+                        // Center the image horizontally
+                        const xPos = margin + (contentWidth - imgWidth) / 2;
+                        
+                        // Add image to PDF
+                        pdf.addImage(
+                            img, 
+                            'JPEG', 
+                            xPos, 
+                            yPos, 
+                            imgWidth, 
+                            imgHeight,
+                            undefined,
+                            'FAST'
+                        );
+                        
+                        yPos += imgHeight + 10;
+                        
+                    } catch (error) {
+                        console.warn('Failed to add image to PDF:', error);
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(150, 150, 150);
+                        pdf.text('Image not available or failed to load', 20, yPos);
+                        yPos += 10;
+                    }
+                }
+                // Add timestamp if requested
+                if (includeTimestamps) {
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(100, 100, 100);
+                    pdf.text(`Report generated: ${new Date().toLocaleString()}`, 20, 280);
+                }
+                
+                // Add page number
+                pdf.text(`Page ${currentPage}`, 190, 280, { align: 'right' });
+            }
+            
+            // Save the PDF
+            pdf.save(`${title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+            
+        } catch (error) {
+            console.error('PDF generation failed:', error);
+            alert('Failed to generate PDF. Please try again.');
+        } finally {
+            // Hide loading overlay
+            $('#pdfLoading').removeClass('flex').addClass('hidden');
+            closePdfModal();
+        }
+    }
+
+    $('#downloadPdfBtn').click(checkPdfLibraries);
+
+    // Close modal on background click
+    $('#pdfModal').click(function(e) {
+        if (e.target === this) {
+            closePdfModal();
+        }
+    });
+
+    // Select All checkbox functionality
+    $('#selectAll').change(function() {
+        const isChecked = $(this).is(':checked');
+        $('.job-checkbox').prop('checked', isChecked);
+        updateSelectedJobs();
+        updateDownloadButton();
+        updatePdfButton();
+        updateSelectedJobsData(); 
+    });
+
+    // Individual checkbox functionality
+    $('.job-checkbox').change(function() {
+        updateSelectedJobs();
+        updateDownloadButton();
+        updateSelectAllCheckbox();
+        updatePdfButton();
+        updateSelectedJobsData(); 
+    });
+
+    function updateSelectedJobs() {
+        selectedJobs = [];
+        $('.job-checkbox:checked').each(function() {
+            selectedJobs.push($(this).val());
+        });
+    }
+
+    function updateDownloadButton() {
+        const downloadBtn = $('#downloadSelectedBtn');
+        if (selectedJobs.length > 0) {
+            downloadBtn.prop('disabled', false);
+            downloadBtn.text(`Download Selected (${selectedJobs.length})`);
+        } else {
+            downloadBtn.prop('disabled', true);
+            downloadBtn.text('Download Selected');
+        }
+    }
+
+    function updateSelectAllCheckbox() {
+        const totalCheckboxes = $('.job-checkbox').length;
+        const checkedCheckboxes = $('.job-checkbox:checked').length;
+        $('#selectAll').prop('checked', checkedCheckboxes === totalCheckboxes && totalCheckboxes > 0);
+    }
+
+    // Download functionality
+    $('#downloadAllBtn').click(function() {
+        if (confirm('Download all failed job images?')) {
+            window.location.href = '/admin/scans/actived/download/zip/all';
+        }
+    });
+
+    $('#downloadSelectedBtn').click(function() {
+        if (selectedJobs.length === 0) return;
+        
+        if (confirm(`Download ${selectedJobs.length} selected image(s)?`)) {
+            const ids = selectedJobs.join(',');
+            window.location.href = `/admin/scans/actived/download/zip/${ids}`;
+        }
+    });
+
+
+    // Image preview functionality
+    function previewImage(fileName) {
+        currentPreviewImage = fileName;
+        $('#previewImage').attr('src', `/uploads/scans/${fileName}`);
+        $('#imagePreviewModal').removeClass('hidden').addClass('flex');
+    }
+
+    function closePreview() {
+        $('#imagePreviewModal').removeClass('flex').addClass('hidden');
+        currentPreviewImage = '';
+    }
+
+    function downloadPreview() {
+        if (currentPreviewImage) {
+            const jobRow = $(`tr[data-job-id]`).filter(function() {
+                return $(this).find('.job-checkbox').val() === currentPreviewImage.split('_')[0];
+            });
+            
+            if (jobRow.length) {
+                const jobId = jobRow.data('job-id');
+                window.location.href = `/admin/scans/failed/${jobId}/download`;
+            }
+        }
+    }
+
+    // Close modal on ESC key
+    $(document).keydown(function(e) {
+        if (e.key === 'Escape') {
+            closePreview();
+            closeModal();
+        }
+    });
+
+    // Close modal on background click
+    $('#imagePreviewModal').click(function(e) {
+        if (e.target === this) {
+            closePreview();
+        }
+    });
+
+
+
+    // Add event listener for resolve buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.resolve-job-btn')) {
+            const button = e.target.closest('.resolve-job-btn');
+            const jobId = button.dataset.jobId;
+            resolveJob(jobId, button);
+        }
+    });
+
+    // Update resolveJob function for event delegation
+    function resolveJob(jobId, element = null) {
+        const button = element || document.querySelector(`.resolve-job-btn[data-job-id="${jobId}"]`);
+        
+        if (!button) {
+            console.error('Resolve button not found for job:', jobId);
+            return;
+        }
+
+        if (confirm('Are you sure you want to mark this job as resolved?\nThis will remove it from the failed jobs list.')) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resolving...';
+            button.disabled = true;
+
+            fetch(`/api/failed-jobs/${jobId}/resolve`, { 
+                method: 'POST' 
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('success', data.message);
+                    const row = button.closest('tr');
+                    if (row) {
+                        row.style.opacity = '0';
+                        row.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => {
+                            if (row.parentElement) {
+                                row.remove();
+                            }
+                            updateStats();
+                        }, 300);
+                    }
+                } else {
+                    showNotification('error', data.message);
+                }
+            })
+            .catch(error => {
+                showNotification('error', 'Error resolving job: ' + error.message);
+            })
+            .finally(() => {
+                if (button && button.parentElement) {
+                    button.innerHTML = '<i class="fas fa-check-circle"></i> Resolve';
+                    button.disabled = false;
+                }
+            });
+        }
+    }
+    function showNotification(type, message) {
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+
+        Toast.fire({
+            icon: type,
+            title: message
+        });
+    }
+    function showNotification_(type, message, duration = 5000) {
+        const container = document.getElementById('notification-container');
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        // Get icon based on type
+        let icon = 'ℹ️';
+        let title = 'Info';
+        
+        switch(type) {
+            case 'success':
+                icon = '✅';
+                title = 'Success';
+                break;
+            case 'error':
+                icon = '❌';
+                title = 'Error';
+                break;
+            case 'warning':
+                icon = '⚠️';
+                title = 'Warning';
+                break;
+            case 'info':
+            default:
+                icon = 'ℹ️';
+                title = 'Info';
+        }
+
+        notification.innerHTML = `
+            <span class="notification-icon">${icon}</span>
+            <div class="notification-content">
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${message}</div>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+        `;
+
+        // Add to container
+        container.appendChild(notification);
+
+        // Auto-remove after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOut 0.3s ease-out';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, duration);
+        }
+
+        return notification;
+    }
+        function viewDetails(jobId) {
+            fetch(`/admin/scans/api/actived-jobs/${jobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const modalContent = document.getElementById('modalContent');
+                    modalContent.innerHTML = `
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Job ID:</label>
+                                <p class="mt-1 text-sm text-gray-900">${data.jobId}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">File Name:</label>
+                                <p class="mt-1 text-sm text-gray-900">${data.fileName}</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Actived At:</label>
+                                <p class="mt-1 text-sm text-gray-900">${new Date(data.createdAt).toLocaleString()}</p>
+                            </div>
+                            ${data.jobData ? `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Job Data:</label>
+                                <pre class="mt-1 text-sm text-gray-900 bg-gray-100 p-3 rounded overflow-x-auto">${JSON.stringify(data.jobData, null, 2)}</pre>
+                            </div>
+                            ` : ''}
+
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Image:</label>
+                                <img alt="Original Image" class="mt-2 rounded border max-h-auto w-full object-contain" src="/uploads/scans/${data.fileName}">
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('detailsModal').classList.remove('hidden');
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('detailsModal').classList.add('hidden');
+        }
+
+        function retryJob(jobId, element) {
+            if (confirm('Are you sure you want to retry this job?')) {
+                // Show loading state
+                const originalText = element.innerHTML;
+                element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+                element.disabled = true;
+
+                fetch(`/admin/scans/api/actived-jobs/${jobId}/retry`, { 
+                    method: 'POST' 
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('success', data.message);
+                        // Update the row to show retry status
+                        updateJobStatus(jobId, 'retrying', `Retry attempt in progress (Job ID: ${data.jobId})`);
+                    } else {
+                        showNotification('error', data.message);
+                    }
+                })
+                .catch(error => {
+                    showNotification('error', 'Error retrying job: ' + error.message);
+                })
+                .finally(() => {
+                    // Restore button state
+                    element.innerHTML = '<i class="fas fa-redo"></i> Retry';
+                    element.disabled = false;
+                });
+            }
+        }
+
+        function retryAllJobs() {
+            if (confirm('Are you sure you want to retry all actived jobs?')) {
+                const button = document.querySelector('#retryAllBtn');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying all...';
+                button.disabled = true;
+
+                fetch('/admin/scans/api/actived-jobs/retry-all', { 
+                    method: 'POST' 
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('success', data.message);
+                        setTimeout(() => refreshPage(), 2000);
+                    } else {
+                        showNotification('error', data.message);
+                    }
+                })
+                .catch(error => {
+                    showNotification('error', 'Error retrying jobs: ' + error.message);
+                })
+                .finally(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+            }
+        }
+
+        function deleteJob(jobId) {
+            if (confirm('Are you sure you want to delete this actived job record?')) {
+                fetch(`/admin/scans/api/actived-jobs/${jobId}`, { method: 'DELETE' })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('Job deleted successfully!');
+                            refreshPage();
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error deleting job: ' + error.message);
+                    });
+            }
+        }
+
+        function clearAllActivedJobs() {
+            if (confirm('Are you sure you want to clear all actived job records?')) {
+                fetch('/admin/scans/api/actived/clear-all/jobs', { method: 'DELETE' })
+                    .then(response => {
+                        if (response.ok) {
+                            alert('All actived jobs cleared!');
+                            refreshPage();
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error clearing jobs: ' + error.message);
+                    });
+            }
+        }
+
+        function refreshPage() {
+            window.location.reload();
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailsModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+
+        function updateJobStatus(jobId, status, message) {
+            // Find the row by job ID - you might need to add data attributes to your rows
+            const rows = document.querySelectorAll('tr[data-job-id]');
+            const row = Array.from(rows).find(r => r.dataset.jobId === jobId);
+            
+            if (row) {
+                const statusCell = row.querySelector('.job-status');
+                if (statusCell) {
+                    statusCell.textContent = status;
+                    statusCell.className = `job-status status-${status} px-2 py-1 text-xs rounded-full`;
+                    
+                    // Update title with the message
+                    statusCell.title = message;
+                }
+                
+                // Disable retry button during retry
+                const retryButton = row.querySelector('.retry-job-btn');
+                if (retryButton) {
+                    retryButton.disabled = status === 'retrying';
+                    retryButton.title = status === 'retrying' ? 'Retry in progress' : 'Retry job';
+                }
+            }
+        }
+
+
+        $(document).ready(function() {
+            updateSelectedJobs();
+            updateSelectedJobsData(); 
+            updateDownloadButton();
+            updateSelectAllCheckbox();
+            updatePdfButton();
+        });
+    </script>
+{{/section}}

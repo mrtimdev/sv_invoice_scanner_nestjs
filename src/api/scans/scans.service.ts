@@ -426,11 +426,7 @@ export class ScansService {
         }
 
         return results;
-        }
-
-
-
-
+    }
 
     async OCRText(image_path: string) {
         return this.documentProcessor.OCRText(image_path);
