@@ -19,6 +19,7 @@ module.exports = {
     production: {
       user: 'deverloper',
       host: '192.168.1.249',
+      port : 22236,
       ref: 'origin/master',
       repo: 'https://github.com/mrtimdev/sv_invoice_scanner_nestjs.git',
       path: '/home/deverloper/sv_scanner',
